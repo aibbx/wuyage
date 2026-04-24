@@ -1,0 +1,7 @@
+fastapi
+mangum
+pydantic
+anthropic
+tweepy
+apscheduler
+python-dotenv
