@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>控制台 | WuYa Smart Agent 2.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0; top: 0;
+            width: 260px;
+            height: 100vh;
+            background: #111;
+            border-right: 1px solid #222;
+            padding: 2rem 1.5rem;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 3rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #222;
+        }
+        
+        .logo-icon {
+            width: 50px; height: 50px;
+            background: linear-gradient(135deg, #ff6b35 0%, #9333ea 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+        }
+        
+        .logo-text h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+        
+        .logo-text p {
+            font-size: 0.75rem;
+            color: #666;
+        }
+        
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+        
+        .nav-section h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: #666;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            color: #999;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 0.25rem;
+        }
+        
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,107,53,0.1);
+            color: #ff6b35;
+        }
+        
+        .nav-item.active {
+            background: linear-gradient(135deg, rgba(255,107,53,0.2) 0%, rgba(147,51,234,0.2) 100%);
+        }
+        
+        /* Main Content */
+        .main {
+            margin-left: 260px;
+            padding: 2rem;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .header h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(34,197,94,0.1);
+            border: 1px solid rgba(34,197,94,0.3);
+            border-radius: 50px;
+            color: #22c55e;
+            font-size: 0.875rem;
+        }
+        
+        .status-dot {
+            width: 8px; height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        
+        .stat-card h4 {
+            font-size: 0.875rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-change {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .stat-change.positive {
+            background: rgba(34,197,94,0.1);
+            color: #22c55e;
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .control-panel h3 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        
+        .control-btn {
+            padding: 1rem;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .control-btn:hover {
+            background: #222;
+            border-color: #ff6b35;
+        }
+        
+        .control-btn .icon {
+            font-size: 1.5rem;
+        }
+        
+        .control-btn .label {
+            font-size: 0.875rem;
+        }
+        
+        /* Content Area */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        .panel {
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .panel h3 {
+            font-size: 1.1rem;
+        }
+        
+        .panel-action {
+            font-size: 0.75rem;
+            color: #ff6b35;
+            cursor: pointer;
+        }
+        
+        /* Tweet Queue */
+        .tweet-item {
+            padding: 1rem;
+            background: #1a1a1a;
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+        }
+        
+        .tweet-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .tweet-text {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+        }
+        
+        .tweet-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #666;
+        }
+        
+        .tweet-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
+        
+        .tweet-status.pending {
+            background: rgba(234,179,8,0.1);
+            color: #eab308;
+        }
+        
+        .tweet-status.posted {
+            background: rgba(34,197,94,0.1);
+            color: #22c55e;
+        }
+        
+        /* Log Panel */
+        .log-item {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #222;
+            font-size: 0.8rem;
+        }
+        
+        .log-item:last-child {
+            border-bottom: none;
+        }
+        
+        .log-time {
+            color: #666;
+            white-space: nowrap;
+        }
+        
+        .log-level {
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .log-level.info {
+            background: rgba(59,130,246,0.1);
+            color: #3b82f6;
+        }
+        
+        .log-level.success {
+            background: rgba(34,197,94,0.1);
+            color: #22c55e;
+        }
+        
+        .log-level.warning {
+            background: rgba(234,179,8,0.1);
+            color: #eab308;
+        }
+        
+        .log-message {
+            color: #ccc;
+        }
+        
+        @media (max-width: 1200px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .control-grid { grid-template-columns: repeat(2, 1fr); }
+            .content-grid { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .control-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">🐦‍⬛</div>
+            <div class="logo-text">
+                <h1>WuYa Agent</h1>
+                <p>Smart Agent 2.0</p>
+            </div>
+        </div>
+        
+        <div class="nav-section">
+            <h3>监控</h3>
+            <div class="nav-item active">
+                <span>📊</span> 总览
+            </div>
+            <div class="nav-item">
+                <span>📱</span> Twitter
+            </div>
+            <div class="nav-item">
+                <span>📝</span> 内容管理
+            </div>
+        </div>
+        
+        <div class="nav-section">
+            <h3>控制</h3>
+            <div class="nav-item">
+                <span>⚙️</span> 任务调度
+            </div>
+            <div class="nav-item">
+                <span>🔔</span> 通知设置
+            </div>
+            <div class="nav-item">
+                <span>🔐</span> API 配置
+            </div>
+        </div>
+        
+        <div class="nav-section">
+            <h3>系统</h3>
+            <div class="nav-item">
+                <span>📈</span> 数据分析
+            </div>
+            <div class="nav-item">
+                <span>🗄️</span> 日志
+            </div>
+        </div>
+    </aside>
+    
+    <main class="main">
+        <header class="header">
+            <h2>控制台总览</h2>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                运行中
+            </div>
+        </header>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h4>今日推文</h4>
+                <div class="stat-value">12</div>
+                <span class="stat-change positive">+3 较昨日</span>
+            </div>
+            <div class="stat-card">
+                <h4>互动数</h4>
+                <div class="stat-value">847</div>
+                <span class="stat-change positive">+23% 较昨日</span>
+            </div>
+            <div class="stat-card">
+                <h4>粉丝增长</h4>
+                <div class="stat-value">+156</div>
+                <span class="stat-change positive">+12% 本周</span>
+            </div>
+            <div class="stat-card">
+                <h4>任务队列</h4>
+                <div class="stat-value">5</div>
+                <span class="stat-change positive">正常</span>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <h3>⚡ 快捷操作</h3>
+            <div class="control-grid">
+                <button class="control-btn" onclick="alert('功能开发中')">
+                    <span class="icon">✍️</span>
+                    <span class="label">立即发推</span>
+                </button>
+                <button class="control-btn" onclick="alert('功能开发中')">
+                    <span class="icon">🔄</span>
+                    <span class="label">刷新数据</span>
+                </button>
+                <button class="control-btn" onclick="alert('功能开发中')">
+                    <span class="icon">⏸️</span>
+                    <span class="label">暂停任务</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="content-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>📝 待发队列</h3>
+                    <span class="panel-action">查看全部 →</span>
+                </div>
+                <div class="tweet-item">
+                    <p class="tweet-text">兄弟们！今天研究了下最新的 AI 模型，感觉我们又站在了一个新时代的门口。你们怎么看？</p>
+                    <div class="tweet-meta">
+                        <span>预计: 2小时后</span>
+                        <span class="tweet-status pending">待发送</span>
+                    </div>
+                </div>
+                <div class="tweet-item">
+                    <p class="tweet-text">刚刚看到个有趣的观点：未来不会用 AI 的人，就像现在不会用智能手机的人。你认同吗？🤔</p>
+                    <div class="tweet-meta">
+                        <span>预计: 5小时后</span>
+                        <span class="tweet-status pending">待发送</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🗄️ 系统日志</h3>
+                    <span class="panel-action">清空</span>
+                </div>
+                <div class="log-item">
+                    <span class="log-time">14:32</span>
+                    <span class="log-level success">成功</span>
+                    <span class="log-message">自动发推任务完成</span>
+                </div>
+                <div class="log-item">
+                    <span class="log-time">14:15</span>
+                    <span class="log-level info">信息</span>
+                    <span class="log-message">检测到热点话题 #AI</span>
+                </div>
+                <div class="log-item">
+                    <span class="log-time">13:50</span>
+                    <span class="log-level success">成功</span>
+                    <span class="log-message">互动回复: 3条</span>
+                </div>
+                <div class="log-item">
+                    <span class="log-time">13:00</span>
+                    <span class="log-level warning">警告</span>
+                    <span class="log-message">API 速率接近限制</span>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        // 模拟实时更新
+        setInterval(() => {
+            const dot = document.querySelector('.status-dot');
+            dot.style.opacity = dot.style.opacity === '0.5' ? '1' : '0.5';
+        }, 1000);
+    </script>
+</body>
+</html>
