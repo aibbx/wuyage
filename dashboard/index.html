@@ -1,507 +1,1010 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>控制台 | WuYa Smart Agent 2.0</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Noto Sans SC', sans-serif;
-            background: #0a0a0a;
-            color: #fff;
-            min-height: 100vh;
-        }
-        
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            left: 0; top: 0;
-            width: 260px;
-            height: 100vh;
-            background: #111;
-            border-right: 1px solid #222;
-            padding: 2rem 1.5rem;
-        }
-        
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 3rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 1px solid #222;
-        }
-        
-        .logo-icon {
-            width: 50px; height: 50px;
-            background: linear-gradient(135deg, #ff6b35 0%, #9333ea 100%);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-        }
-        
-        .logo-text h1 {
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
-        
-        .logo-text p {
-            font-size: 0.75rem;
-            color: #666;
-        }
-        
-        .nav-section {
-            margin-bottom: 2rem;
-        }
-        
-        .nav-section h3 {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            color: #666;
-            letter-spacing: 1px;
-            margin-bottom: 1rem;
-        }
-        
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            color: #999;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-bottom: 0.25rem;
-        }
-        
-        .nav-item:hover, .nav-item.active {
-            background: rgba(255,107,53,0.1);
-            color: #ff6b35;
-        }
-        
-        .nav-item.active {
-            background: linear-gradient(135deg, rgba(255,107,53,0.2) 0%, rgba(147,51,234,0.2) 100%);
-        }
-        
-        /* Main Content */
-        .main {
-            margin-left: 260px;
-            padding: 2rem;
-        }
-        
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-        
-        .header h2 {
-            font-size: 1.8rem;
-            font-weight: 700;
-        }
-        
-        .status-badge {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: rgba(34,197,94,0.1);
-            border: 1px solid rgba(34,197,94,0.3);
-            border-radius: 50px;
-            color: #22c55e;
-            font-size: 0.875rem;
-        }
-        
-        .status-dot {
-            width: 8px; height: 8px;
-            background: #22c55e;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .stat-card {
-            background: #111;
-            border: 1px solid #222;
-            border-radius: 16px;
-            padding: 1.5rem;
-        }
-        
-        .stat-card h4 {
-            font-size: 0.875rem;
-            color: #666;
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-change {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-        }
-        
-        .stat-change.positive {
-            background: rgba(34,197,94,0.1);
-            color: #22c55e;
-        }
-        
-        /* Control Panel */
-        .control-panel {
-            background: #111;
-            border: 1px solid #222;
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .control-panel h3 {
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .control-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-        }
-        
-        .control-btn {
-            padding: 1rem;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 12px;
-            color: #fff;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .control-btn:hover {
-            background: #222;
-            border-color: #ff6b35;
-        }
-        
-        .control-btn .icon {
-            font-size: 1.5rem;
-        }
-        
-        .control-btn .label {
-            font-size: 0.875rem;
-        }
-        
-        /* Content Area */
-        .content-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 1.5rem;
-        }
-        
-        .panel {
-            background: #111;
-            border: 1px solid #222;
-            border-radius: 16px;
-            padding: 1.5rem;
-        }
-        
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        
-        .panel h3 {
-            font-size: 1.1rem;
-        }
-        
-        .panel-action {
-            font-size: 0.75rem;
-            color: #ff6b35;
-            cursor: pointer;
-        }
-        
-        /* Tweet Queue */
-        .tweet-item {
-            padding: 1rem;
-            background: #1a1a1a;
-            border-radius: 12px;
-            margin-bottom: 0.75rem;
-        }
-        
-        .tweet-item:last-child {
-            margin-bottom: 0;
-        }
-        
-        .tweet-text {
-            font-size: 0.9rem;
-            line-height: 1.6;
-            margin-bottom: 0.75rem;
-        }
-        
-        .tweet-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.75rem;
-            color: #666;
-        }
-        
-        .tweet-status {
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.7rem;
-        }
-        
-        .tweet-status.pending {
-            background: rgba(234,179,8,0.1);
-            color: #eab308;
-        }
-        
-        .tweet-status.posted {
-            background: rgba(34,197,94,0.1);
-            color: #22c55e;
-        }
-        
-        /* Log Panel */
-        .log-item {
-            display: flex;
-            gap: 0.75rem;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #222;
-            font-size: 0.8rem;
-        }
-        
-        .log-item:last-child {
-            border-bottom: none;
-        }
-        
-        .log-time {
-            color: #666;
-            white-space: nowrap;
-        }
-        
-        .log-level {
-            padding: 0.1rem 0.4rem;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
-        }
-        
-        .log-level.info {
-            background: rgba(59,130,246,0.1);
-            color: #3b82f6;
-        }
-        
-        .log-level.success {
-            background: rgba(34,197,94,0.1);
-            color: #22c55e;
-        }
-        
-        .log-level.warning {
-            background: rgba(234,179,8,0.1);
-            color: #eab308;
-        }
-        
-        .log-message {
-            color: #ccc;
-        }
-        
-        @media (max-width: 1200px) {
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .control-grid { grid-template-columns: repeat(2, 1fr); }
-            .content-grid { grid-template-columns: 1fr; }
-        }
-        
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
-            .main { margin-left: 0; }
-            .stats-grid { grid-template-columns: 1fr; }
-            .control-grid { grid-template-columns: 1fr; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>乌鸦嘴预言家 | Smart Agent 3.0</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black: #0a0a0a;
+      --panel: #111;
+      --panel2: #161616;
+      --border: #222;
+      --accent: #ff6b35;
+      --gold: #f5c518;
+      --purple: #9333ea;
+      --green: #22c55e;
+      --red: #ef4444;
+      --text: #e5e5e5;
+      --dim: #666;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: var(--black);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      position: fixed; left: 0; top: 0;
+      width: 240px; height: 100vh;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1.25rem;
+      display: flex; flex-direction: column;
+    }
+    .logo {
+      display: flex; align-items: center; gap: .75rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+    .logo-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+    }
+    .logo-text { line-height: 1.3; }
+    .logo-text h1 { font-size: .9rem; font-weight: 700; color: #fff; }
+    .logo-text span { font-size: .7rem; color: var(--accent); letter-spacing: .05em; }
+
+    .nav-section { font-size: .65rem; color: var(--dim); text-transform: uppercase;
+      letter-spacing: .1em; margin: 1rem 0 .5rem; }
+    .nav-item {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .55rem .75rem; border-radius: 8px;
+      font-size: .82rem; color: #aaa; cursor: pointer;
+      transition: all .15s; margin-bottom: 2px;
+    }
+    .nav-item:hover { background: #1a1a1a; color: #fff; }
+    .nav-item.active { background: rgba(255,107,53,.12); color: var(--accent); }
+    .nav-item .icon { width: 16px; text-align: center; }
+
+    .crow-badge {
+      margin-top: auto;
+      background: linear-gradient(135deg, rgba(255,107,53,.15), rgba(147,51,234,.1));
+      border: 1px solid rgba(255,107,53,.3);
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .crow-badge .crow-emoji { font-size: 2rem; }
+    .crow-badge .crow-label { font-size: .7rem; color: var(--dim); margin-top: .25rem; }
+    .crow-badge .crow-score { font-size: 1.4rem; font-weight: 900; color: var(--accent); }
+    .crow-badge .crow-bar { font-size: .9rem; margin: .2rem 0; letter-spacing: .05em; }
+    .crow-badge .crow-title { font-size: .7rem; color: var(--gold); }
+
+    /* ── MAIN ── */
+    main {
+      margin-left: 240px;
+      flex: 1;
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+    .page-title h2 { font-size: 1.4rem; font-weight: 900; }
+    .page-title p { font-size: .8rem; color: var(--dim); margin-top: .2rem; }
+    .status-pill {
+      display: flex; align-items: center; gap: .5rem;
+      background: rgba(34,197,94,.1);
+      border: 1px solid rgba(34,197,94,.2);
+      border-radius: 20px; padding: .4rem 1rem;
+      font-size: .75rem; color: var(--green);
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── STAT CARDS ── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.2rem 1.25rem;
+      position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+    .stat-card.accent::before { background: var(--accent); }
+    .stat-card.gold::before   { background: var(--gold); }
+    .stat-card.green::before  { background: var(--green); }
+    .stat-card.purple::before { background: var(--purple); }
+
+    .stat-label { font-size: .72rem; color: var(--dim); margin-bottom: .5rem; }
+    .stat-value { font-size: 2rem; font-weight: 900; }
+    .stat-value.accent { color: var(--accent); }
+    .stat-value.gold   { color: var(--gold); }
+    .stat-value.green  { color: var(--green); }
+    .stat-value.purple { color: var(--purple); }
+    .stat-sub { font-size: .7rem; color: var(--dim); margin-top: .35rem; }
+    .stat-icon { position: absolute; right: 1rem; top: 1rem; font-size: 1.8rem; opacity: .15; }
+
+    /* ── SECTION LAYOUT ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .full-col { margin-bottom: 1rem; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .card-title { font-size: .9rem; font-weight: 700; }
+    .card-badge {
+      font-size: .65rem; padding: .2rem .6rem;
+      border-radius: 4px; font-weight: 600;
+    }
+    .badge-red    { background: rgba(239,68,68,.15);   color: var(--red); }
+    .badge-gold   { background: rgba(245,197,24,.15);  color: var(--gold); }
+    .badge-green  { background: rgba(34,197,94,.15);   color: var(--green); }
+    .badge-purple { background: rgba(147,51,234,.15);  color: var(--purple); }
+    .badge-accent { background: rgba(255,107,53,.15);  color: var(--accent); }
+
+    /* ── PROPHECY LIST ── */
+    .prophecy-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      margin-bottom: .75rem;
+      background: var(--panel2);
+      transition: border-color .15s;
+    }
+    .prophecy-item:hover { border-color: #333; }
+    .prophecy-item.fulfilled { border-left: 3px solid var(--green); }
+    .prophecy-item.pending   { border-left: 3px solid var(--gold); }
+
+    .ph-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+    .ph-subject { font-size: .88rem; font-weight: 700; }
+    .ph-level { display: flex; gap: .15rem; }
+    .ph-level span { width: 8px; height: 8px; border-radius: 2px; }
+    .ph-level span.on  { background: var(--accent); }
+    .ph-level span.off { background: #2a2a2a; }
+    .ph-content { font-size: .8rem; color: #bbb; margin-bottom: .6rem; line-height: 1.5; }
+    .ph-footer { display: flex; align-items: center; gap: .75rem; font-size: .7rem; color: var(--dim); }
+    .ph-cat { color: var(--accent); }
+    .ph-result { color: var(--green); font-size: .75rem; }
+
+    /* ── CONTENT GENERATOR ── */
+    .gen-modes { display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .mode-btn {
+      padding: .4rem .9rem; border-radius: 20px; border: 1px solid var(--border);
+      background: transparent; color: #aaa; font-size: .78rem; cursor: pointer;
+      transition: all .15s; font-family: inherit;
+    }
+    .mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .mode-btn.active { background: rgba(255,107,53,.15); border-color: var(--accent); color: var(--accent); }
+
+    .gen-form { display: flex; flex-direction: column; gap: .75rem; }
+    .gen-input, .gen-select, .gen-textarea {
+      background: var(--panel2); border: 1px solid var(--border);
+      border-radius: 8px; padding: .65rem .9rem; color: var(--text);
+      font-size: .82rem; font-family: inherit; outline: none; width: 100%;
+      transition: border-color .15s;
+    }
+    .gen-input:focus, .gen-select:focus, .gen-textarea:focus { border-color: var(--accent); }
+    .gen-select option { background: #111; }
+    .gen-textarea { height: 80px; resize: none; }
+    .gen-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+
+    .crow-slider { display: flex; align-items: center; gap: .75rem; }
+    .crow-slider input[type=range] {
+      flex: 1; accent-color: var(--accent);
+    }
+    .crow-slider span { min-width: 60px; font-size: .8rem; color: var(--accent); }
+
+    .gen-btn {
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      border: none; border-radius: 8px; padding: .7rem;
+      color: #fff; font-size: .85rem; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: opacity .15s;
+    }
+    .gen-btn:hover { opacity: .85; }
+
+    .gen-output {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 1rem;
+      font-size: .82rem; line-height: 1.7;
+      min-height: 80px; white-space: pre-wrap;
+      color: var(--text);
+      display: none;
+    }
+    .gen-output.visible { display: block; }
+    .meme-trigger {
+      margin-top: .5rem; font-size: .8rem;
+      color: var(--gold); display: none;
+    }
+    .meme-trigger.visible { display: block; }
+
+    /* ── QUEUE / LOG ── */
+    .tweet-item {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem;
+      margin-bottom: .6rem;
+    }
+    .tweet-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+    .tweet-mode { font-size: .7rem; color: var(--accent); font-weight: 700; }
+    .tweet-cat  { font-size: .7rem; color: var(--dim); }
+    .tweet-content { font-size: .8rem; line-height: 1.6; color: #ccc; white-space: pre-line; }
+    .tweet-actions { display: flex; gap: .5rem; margin-top: .6rem; }
+    .ta-btn {
+      font-size: .7rem; padding: .25rem .6rem;
+      border-radius: 5px; border: 1px solid var(--border);
+      background: transparent; color: #aaa; cursor: pointer;
+      font-family: inherit; transition: all .15s;
+    }
+    .ta-btn.send { border-color: var(--green); color: var(--green); }
+    .ta-btn.send:hover { background: rgba(34,197,94,.1); }
+    .ta-btn.edit { border-color: var(--dim); }
+    .ta-btn.edit:hover { border-color: var(--accent); color: var(--accent); }
+    .ta-btn.del { border-color: var(--dim); }
+    .ta-btn.del:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── LOG ITEMS ── */
+    .log-item {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .55rem 0;
+      border-bottom: 1px solid #1a1a1a;
+      font-size: .78rem;
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-time { color: var(--dim); min-width: 42px; }
+    .log-level { padding: .15rem .45rem; border-radius: 4px; font-size: .65rem; font-weight: 700; }
+    .log-level.success { background: rgba(34,197,94,.15); color: var(--green); }
+    .log-level.warning { background: rgba(245,197,24,.15); color: var(--gold); }
+    .log-level.alert   { background: rgba(255,107,53,.15); color: var(--accent); }
+    .log-level.hit     { background: rgba(147,51,234,.15); color: var(--purple); }
+    .log-msg { color: #bbb; flex: 1; }
+
+    /* ── MEME PANEL ── */
+    .meme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }
+    .meme-card {
+      background: var(--panel2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem; text-align: center;
+      cursor: pointer; transition: all .15s;
+    }
+    .meme-card:hover { border-color: var(--accent); }
+    .meme-card .meme-emoji { font-size: 2.5rem; margin-bottom: .5rem; }
+    .meme-card .meme-name  { font-size: .8rem; font-weight: 700; }
+    .meme-card .meme-triggers-list { font-size: .68rem; color: var(--dim); margin-top: .3rem; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #333; }
+  </style>
 </head>
 <body>
-    <aside class="sidebar">
-        <div class="logo">
-            <div class="logo-icon">🐦‍⬛</div>
-            <div class="logo-text">
-                <h1>WuYa Agent</h1>
-                <p>Smart Agent 2.0</p>
-            </div>
+
+<!-- ─── SIDEBAR ─── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🐦</div>
+    <div class="logo-text">
+      <h1>乌鸦嘴预言家</h1>
+      <span>SMART AGENT 3.0</span>
+    </div>
+  </div>
+
+  <div class="nav-section">预警系统</div>
+  <div class="nav-item active" onclick="showPage('overview')">
+    <span class="icon">📊</span> 总览
+  </div>
+  <div class="nav-item" onclick="showPage('vault')">
+    <span class="icon">🗂</span> 预言库
+  </div>
+  <div class="nav-item" onclick="showPage('generator')">
+    <span class="icon">✍️</span> 内容生成
+  </div>
+  <div class="nav-item" onclick="showPage('queue')">
+    <span class="icon">📤</span> 发布队列
+  </div>
+
+  <div class="nav-section">运营工具</div>
+  <div class="nav-item" onclick="showPage('memes')">
+    <span class="icon">🀄</span> 表情包触发
+  </div>
+  <div class="nav-item" onclick="showPage('log')">
+    <span class="icon">📋</span> 运行日志
+  </div>
+  <div class="nav-item" onclick="showPage('settings')">
+    <span class="icon">⚙️</span> 设置
+  </div>
+
+  <div class="crow-badge">
+    <div class="crow-emoji">🐦</div>
+    <div class="crow-score" id="sb-accuracy">75.0%</div>
+    <div class="crow-bar" id="sb-bar">🖤🖤🖤🤍🤍</div>
+    <div class="crow-label">乌鸦嘴指数</div>
+    <div class="crow-title" id="sb-title">江湖大预言家 · 准</div>
+  </div>
+</aside>
+
+<!-- ─── MAIN ─── -->
+<main>
+
+  <!-- ════ PAGE: OVERVIEW ════ -->
+  <div id="page-overview">
+    <div class="page-header">
+      <div class="page-title">
+        <h2>🐦 乌鸦嘴预言家 · 总览</h2>
+        <p>我说的不算，但我说的都准</p>
+      </div>
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        <span>Agent 3.0 运行中</span>
+      </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stats-grid">
+      <div class="stat-card accent">
+        <div class="stat-icon">📊</div>
+        <div class="stat-label">乌鸦嘴指数</div>
+        <div class="stat-value accent" id="s-accuracy">75.0%</div>
+        <div class="stat-sub">命中率 · 江湖大预言家</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-icon">🗂</div>
+        <div class="stat-label">预言总数</div>
+        <div class="stat-value gold" id="s-total">4</div>
+        <div class="stat-sub"><span id="s-fulfilled">3</span> 已验 · <span id="s-pending">1</span> 待验</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">📤</div>
+        <div class="stat-label">今日预警</div>
+        <div class="stat-value green">5</div>
+        <div class="stat-sub">互动量 1,847</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon">🀄</div>
+        <div class="stat-label">表情包触发</div>
+        <div class="stat-value purple">12</div>
+        <div class="stat-sub">掀桌 8 · 叼牙签 4</div>
+      </div>
+    </div>
+
+    <!-- 2-COL -->
+    <div class="two-col">
+
+      <!-- RECENT PROPHECIES -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">最新预言</div>
+          <div class="card-badge badge-accent">待验 2</div>
         </div>
-        
-        <div class="nav-section">
-            <h3>监控</h3>
-            <div class="nav-item active">
-                <span>📊</span> 总览
-            </div>
-            <div class="nav-item">
-                <span>📱</span> Twitter
-            </div>
-            <div class="nav-item">
-                <span>📝</span> 内容管理
-            </div>
+        <div id="overview-prophecies">
+          <!-- JS filled -->
         </div>
-        
-        <div class="nav-section">
-            <h3>控制</h3>
-            <div class="nav-item">
-                <span>⚙️</span> 任务调度
-            </div>
-            <div class="nav-item">
-                <span>🔔</span> 通知设置
-            </div>
-            <div class="nav-item">
-                <span>🔐</span> API 配置
-            </div>
+      </div>
+
+      <!-- CROW INDEX BREAKDOWN -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">乌鸦嘴指数详情</div>
+          <div class="card-badge badge-gold" id="crow-title-badge">江湖大预言家</div>
         </div>
-        
-        <div class="nav-section">
-            <h3>系统</h3>
-            <div class="nav-item">
-                <span>📈</span> 数据分析
+        <div style="text-align:center; padding: 1.5rem 0;">
+          <div style="font-size:4rem;">🐦</div>
+          <div style="font-size:3rem; font-weight:900; color:var(--accent); margin:.5rem 0;" id="detail-accuracy">75.0%</div>
+          <div style="font-size:1.5rem; letter-spacing:.1em; margin:.5rem 0;" id="detail-bar">🖤🖤🖤🤍🤍</div>
+          <div style="font-size:.85rem; color:var(--dim); margin-bottom:1.5rem;" id="detail-title">江湖大预言家 · 准</div>
+          <div style="display:flex; justify-content:center; gap:2rem;">
+            <div style="text-align:center;">
+              <div style="font-size:1.5rem; font-weight:700; color:var(--green);" id="detail-fulfilled">3</div>
+              <div style="font-size:.7rem; color:var(--dim);">命中</div>
             </div>
-            <div class="nav-item">
-                <span>🗄️</span> 日志
+            <div style="text-align:center;">
+              <div style="font-size:1.5rem; font-weight:700; color:var(--gold);" id="detail-pending">1</div>
+              <div style="font-size:.7rem; color:var(--dim);">待验</div>
             </div>
+            <div style="text-align:center;">
+              <div style="font-size:1.5rem; font-weight:700; color:var(--accent);" id="detail-total">4</div>
+              <div style="font-size:.7rem; color:var(--dim);">总数</div>
+            </div>
+          </div>
         </div>
-    </aside>
-    
-    <main class="main">
-        <header class="header">
-            <h2>控制台总览</h2>
-            <div class="status-badge">
-                <span class="status-dot"></span>
-                运行中
-            </div>
-        </header>
-        
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h4>今日推文</h4>
-                <div class="stat-value">12</div>
-                <span class="stat-change positive">+3 较昨日</span>
-            </div>
-            <div class="stat-card">
-                <h4>互动数</h4>
-                <div class="stat-value">847</div>
-                <span class="stat-change positive">+23% 较昨日</span>
-            </div>
-            <div class="stat-card">
-                <h4>粉丝增长</h4>
-                <div class="stat-value">+156</div>
-                <span class="stat-change positive">+12% 本周</span>
-            </div>
-            <div class="stat-card">
-                <h4>任务队列</h4>
-                <div class="stat-value">5</div>
-                <span class="stat-change positive">正常</span>
-            </div>
+        <div style="margin-top:1rem;">
+          <div style="font-size:.7rem; color:var(--dim); margin-bottom:.5rem;">预警分类分布</div>
+          <div style="display:flex; flex-direction:column; gap:.4rem;" id="cat-bars">
+            <!-- JS filled -->
+          </div>
         </div>
-        
-        <div class="control-panel">
-            <h3>⚡ 快捷操作</h3>
-            <div class="control-grid">
-                <button class="control-btn" onclick="alert('功能开发中')">
-                    <span class="icon">✍️</span>
-                    <span class="label">立即发推</span>
-                </button>
-                <button class="control-btn" onclick="alert('功能开发中')">
-                    <span class="icon">🔄</span>
-                    <span class="label">刷新数据</span>
-                </button>
-                <button class="control-btn" onclick="alert('功能开发中')">
-                    <span class="icon">⏸️</span>
-                    <span class="label">暂停任务</span>
-                </button>
-            </div>
+      </div>
+    </div>
+
+    <!-- MEME TRIGGERS -->
+    <div class="card full-col">
+      <div class="card-header">
+        <div class="card-title">🀄 表情包触发规则</div>
+        <div class="card-badge badge-accent">自动检测</div>
+      </div>
+      <div class="meme-grid">
+        <div class="meme-card">
+          <div class="meme-emoji">🀄</div>
+          <div class="meme-name">掀桌</div>
+          <div class="meme-triggers-list">崩盘 · 暴雷 · 腰斩 · 大跌 · 爆仓</div>
         </div>
-        
-        <div class="content-grid">
-            <div class="panel">
-                <div class="panel-header">
-                    <h3>📝 待发队列</h3>
-                    <span class="panel-action">查看全部 →</span>
-                </div>
-                <div class="tweet-item">
-                    <p class="tweet-text">兄弟们！今天研究了下最新的 AI 模型，感觉我们又站在了一个新时代的门口。你们怎么看？</p>
-                    <div class="tweet-meta">
-                        <span>预计: 2小时后</span>
-                        <span class="tweet-status pending">待发送</span>
-                    </div>
-                </div>
-                <div class="tweet-item">
-                    <p class="tweet-text">刚刚看到个有趣的观点：未来不会用 AI 的人，就像现在不会用智能手机的人。你认同吗？🤔</p>
-                    <div class="tweet-meta">
-                        <span>预计: 5小时后</span>
-                        <span class="tweet-status pending">待发送</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="panel">
-                <div class="panel-header">
-                    <h3>🗄️ 系统日志</h3>
-                    <span class="panel-action">清空</span>
-                </div>
-                <div class="log-item">
-                    <span class="log-time">14:32</span>
-                    <span class="log-level success">成功</span>
-                    <span class="log-message">自动发推任务完成</span>
-                </div>
-                <div class="log-item">
-                    <span class="log-time">14:15</span>
-                    <span class="log-level info">信息</span>
-                    <span class="log-message">检测到热点话题 #AI</span>
-                </div>
-                <div class="log-item">
-                    <span class="log-time">13:50</span>
-                    <span class="log-level success">成功</span>
-                    <span class="log-message">互动回复: 3条</span>
-                </div>
-                <div class="log-item">
-                    <span class="log-time">13:00</span>
-                    <span class="log-level warning">警告</span>
-                    <span class="log-message">API 速率接近限制</span>
-                </div>
-            </div>
+        <div class="meme-card">
+          <div class="meme-emoji">😏</div>
+          <div class="meme-name">叼牙签</div>
+          <div class="meme-triggers-list">应验 · 命中 · 果然 · 说中 · 不出所料</div>
         </div>
-    </main>
-    
-    <script>
-        // 模拟实时更新
-        setInterval(() => {
-            const dot = document.querySelector('.status-dot');
-            dot.style.opacity = dot.style.opacity === '0.5' ? '1' : '0.5';
-        }, 1000);
-    </script>
+        <div class="meme-card">
+          <div class="meme-emoji">🐦</div>
+          <div class="meme-name">冷笑离场</div>
+          <div class="meme-triggers-list">翻车 · 反转 · 打脸 · 塌房</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: VAULT ════ -->
+  <div id="page-vault" style="display:none;">
+    <div class="page-header">
+      <div class="page-title">
+        <h2>🗂 预言库</h2>
+        <p>每一条预言都是乌鸦嘴的战绩</p>
+      </div>
+      <div style="display:flex; gap:.75rem;">
+        <select class="gen-select" style="width:120px;" id="filter-cat" onchange="renderVault()">
+          <option value="">全部分类</option>
+          <option value="market">市场崩盘</option>
+          <option value="industry">行业暴雷</option>
+          <option value="trend">趋势逆转</option>
+          <option value="celebrity">热点翻车</option>
+        </select>
+        <select class="gen-select" style="width:110px;" id="filter-status" onchange="renderVault()">
+          <option value="">全部状态</option>
+          <option value="fulfilled">已应验</option>
+          <option value="pending">待验</option>
+        </select>
+      </div>
+    </div>
+    <div id="vault-list"></div>
+  </div>
+
+  <!-- ════ PAGE: GENERATOR ════ -->
+  <div id="page-generator" style="display:none;">
+    <div class="page-header">
+      <div class="page-title">
+        <h2>✍️ 内容生成引擎</h2>
+        <p>一键生成乌鸦嘴风格预警推文</p>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><div class="card-title">生成模式</div></div>
+        <div class="gen-modes">
+          <button class="mode-btn active" onclick="setMode('alert', this)">⚠️ 凶相预警</button>
+          <button class="mode-btn" onclick="setMode('fulfilled', this)">✓ 预言应验</button>
+          <button class="mode-btn" onclick="setMode('sarcasm', this)">😒 反讽点评</button>
+          <button class="mode-btn" onclick="setMode('meme', this)">🀄 表情包</button>
+        </div>
+        <div class="gen-form">
+          <input class="gen-input" id="g-subject" placeholder="预警对象（如：某加密货币）">
+          <div id="g-detail-row">
+            <textarea class="gen-textarea" id="g-detail" placeholder="凶相描述（如：庄家出货信号明显，散户接盘在即）"></textarea>
+          </div>
+          <div id="g-extra-row" style="display:none;">
+            <div class="gen-row">
+              <input class="gen-input" id="g-prediction" placeholder="原始预言">
+              <input class="gen-input" id="g-result" placeholder="实际结果">
+            </div>
+          </div>
+          <div id="g-event-row" style="display:none;">
+            <input class="gen-input" id="g-event" placeholder="事件描述（如：塌房/翻车）">
+          </div>
+          <div>
+            <div style="font-size:.75rem; color:var(--dim); margin-bottom:.4rem;">预警等级</div>
+            <div class="crow-slider">
+              <input type="range" min="1" max="5" value="3" id="g-level" oninput="updateLevel(this.value)">
+              <span id="level-display">3/5 ⚠️</span>
+            </div>
+          </div>
+          <button class="gen-btn" onclick="generateContent()">🐦 生成预言</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">生成结果</div>
+          <button class="ta-btn send" onclick="copyContent()" style="font-size:.72rem;">📋 复制</button>
+        </div>
+        <div class="gen-output" id="gen-result"></div>
+        <div class="meme-trigger" id="meme-trigger-alert">
+          🀄 检测到高危关键词，建议触发「掀桌」表情包！
+        </div>
+        <div style="margin-top:1rem; color:var(--dim); font-size:.78rem; text-align:center;" id="gen-placeholder">
+          在左侧填写信息，点击「生成预言」
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: QUEUE ════ -->
+  <div id="page-queue" style="display:none;">
+    <div class="page-header">
+      <div class="page-title">
+        <h2>📤 发布队列</h2>
+        <p>当前待发布 4 条预警内容</p>
+      </div>
+      <button class="gen-btn" style="width:auto; padding:.5rem 1.25rem; font-size:.8rem;">
+        ▶ 全部发布
+      </button>
+    </div>
+    <div id="queue-list"></div>
+  </div>
+
+  <!-- ════ PAGE: MEMES ════ -->
+  <div id="page-memes" style="display:none;">
+    <div class="page-header">
+      <div class="page-title">
+        <h2>🀄 表情包资产库</h2>
+        <p>全网公共记忆，零传播成本</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">核心表情包资产</div></div>
+      <div class="meme-grid" style="margin-bottom:1.5rem;">
+        <div class="meme-card" onclick="copyMeme('（掀桌）\n说过了！这不就来了？🀄\n\n#乌鸦嘴从不撒谎 @wuyageai')">
+          <div class="meme-emoji">🀄</div>
+          <div class="meme-name">掀桌</div>
+          <div class="meme-triggers-list">触发：崩盘/暴雷/腰斩/大跌/爆仓</div>
+          <div style="font-size:.68rem; color:var(--accent); margin-top:.5rem;">点击复制模板</div>
+        </div>
+        <div class="meme-card" onclick="copyMeme('（叼着牙签）\n\n……早。说。了。\n\n@wuyageai')">
+          <div class="meme-emoji">😏</div>
+          <div class="meme-name">叼牙签</div>
+          <div class="meme-triggers-list">触发：应验/命中/果然/说中</div>
+          <div style="font-size:.68rem; color:var(--accent); margin-top:.5rem;">点击复制模板</div>
+        </div>
+        <div class="meme-card" onclick="copyMeme('🐦\n\n早说了。\n\n（离开现场）')">
+          <div class="meme-emoji">🐦</div>
+          <div class="meme-name">冷笑离场</div>
+          <div class="meme-triggers-list">触发：翻车/反转/打脸/塌房</div>
+          <div style="font-size:.68rem; color:var(--accent); margin-top:.5rem;">点击复制模板</div>
+        </div>
+      </div>
+      <div class="card-header" style="margin-bottom:.75rem;">
+        <div class="card-title" style="font-size:.85rem;">品牌口号资产</div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:.5rem;">
+        <span onclick="copyMeme(this.textContent)" style="background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:.35rem .8rem; font-size:.78rem; cursor:pointer; transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">我不是在诅咒，我是在预警</span>
+        <span onclick="copyMeme(this.textContent)" style="background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:.35rem .8rem; font-size:.78rem; cursor:pointer; transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">乌鸦嘴从不撒谎，只是你不信</span>
+        <span onclick="copyMeme(this.textContent)" style="background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:.35rem .8rem; font-size:.78rem; cursor:pointer; transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">这局不好打</span>
+        <span onclick="copyMeme(this.textContent)" style="background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:.35rem .8rem; font-size:.78rem; cursor:pointer; transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">凶相已现，自求多福</span>
+        <span onclick="copyMeme(this.textContent)" style="background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:.35rem .8rem; font-size:.78rem; cursor:pointer; transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">牌面给足，运气随缘</span>
+        <span onclick="copyMeme(this.textContent)" style="background:var(--panel2); border:1px solid var(--border); border-radius:6px; padding:.35rem .8rem; font-size:.78rem; cursor:pointer; transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">#乌鸦嘴又准了</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: LOG ════ -->
+  <div id="page-log" style="display:none;">
+    <div class="page-header">
+      <div class="page-title">
+        <h2>📋 运行日志</h2>
+        <p>Smart Agent 3.0 实时状态</p>
+      </div>
+    </div>
+    <div class="card">
+      <div id="log-list">
+        <div class="log-item">
+          <span class="log-time">14:32</span>
+          <span class="log-level hit">命中</span>
+          <span class="log-msg">预言 p_002 已验证：某加密货币 -63% ✓ 乌鸦嘴指数 +5</span>
+        </div>
+        <div class="log-item">
+          <span class="log-time">14:15</span>
+          <span class="log-level alert">预警</span>
+          <span class="log-msg">生成预警推文：某大厂裁员信号 (等级 4/5)</span>
+        </div>
+        <div class="log-item">
+          <span class="log-time">13:48</span>
+          <span class="log-level success">成功</span>
+          <span class="log-msg">自动回复 28 条互动</span>
+        </div>
+        <div class="log-item">
+          <span class="log-time">13:30</span>
+          <span class="log-level success">发布</span>
+          <span class="log-msg">预警推文发布成功 · 「掀桌」表情包触发</span>
+        </div>
+        <div class="log-item">
+          <span class="log-time">13:00</span>
+          <span class="log-level warning">警告</span>
+          <span class="log-msg">Twitter API 速率接近限制，已降速</span>
+        </div>
+        <div class="log-item">
+          <span class="log-time">12:45</span>
+          <span class="log-level hit">命中</span>
+          <span class="log-msg">预言 p_001 已验证：AI独角兽估值腰斩 ✓</span>
+        </div>
+        <div class="log-item">
+          <span class="log-time">12:00</span>
+          <span class="log-level success">成功</span>
+          <span class="log-msg">Smart Agent 3.0 启动完成 · 乌鸦嘴指数初始化 75.0%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ PAGE: SETTINGS ════ -->
+  <div id="page-settings" style="display:none;">
+    <div class="page-header">
+      <div class="page-title">
+        <h2>⚙️ Agent 配置</h2>
+        <p>Smart Agent 3.0 运行参数</p>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><div class="card-title">人格定义</div></div>
+        <div style="display:flex; flex-direction:column; gap:.75rem;">
+          <div>
+            <div style="font-size:.72rem; color:var(--dim); margin-bottom:.3rem;">角色名称</div>
+            <input class="gen-input" value="乌鸦嘴">
+          </div>
+          <div>
+            <div style="font-size:.72rem; color:var(--dim); margin-bottom:.3rem;">核心人设</div>
+            <input class="gen-input" value="预言家 · 凶相预警专家">
+          </div>
+          <div>
+            <div style="font-size:.72rem; color:var(--dim); margin-bottom:.3rem;">口号</div>
+            <input class="gen-input" value="我说的不算，但我说的都准">
+          </div>
+          <div>
+            <div style="font-size:.72rem; color:var(--dim); margin-bottom:.3rem;">指数目标</div>
+            <input class="gen-input" value="80.0%">
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">自动化设置</div></div>
+        <div style="display:flex; flex-direction:column; gap:.85rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:.82rem;">⚠️ 自动预警</span>
+            <div style="background:var(--green); width:36px; height:20px; border-radius:10px; cursor:pointer; position:relative;">
+              <div style="background:#fff; width:16px; height:16px; border-radius:50%; position:absolute; right:2px; top:2px;"></div>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:.82rem;">✓ 自动标记命中</span>
+            <div style="background:var(--green); width:36px; height:20px; border-radius:10px; cursor:pointer; position:relative;">
+              <div style="background:#fff; width:16px; height:16px; border-radius:50%; position:absolute; right:2px; top:2px;"></div>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:.82rem;">🀄 表情包自动触发</span>
+            <div style="background:var(--green); width:36px; height:20px; border-radius:10px; cursor:pointer; position:relative;">
+              <div style="background:#fff; width:16px; height:16px; border-radius:50%; position:absolute; right:2px; top:2px;"></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:.72rem; color:var(--dim); margin-bottom:.35rem;">发推间隔（分钟）</div>
+            <input class="gen-input" value="45" type="number">
+          </div>
+          <div>
+            <div style="font-size:.72rem; color:var(--dim); margin-bottom:.35rem;">回复间隔（分钟）</div>
+            <input class="gen-input" value="10" type="number">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card full-col" style="margin-top:1rem;">
+      <div class="card-header"><div class="card-title">版本信息</div></div>
+      <div style="display:flex; gap:2rem; font-size:.82rem;">
+        <div><span style="color:var(--dim);">版本：</span><span style="color:var(--accent);">Smart Agent 3.0.0</span></div>
+        <div><span style="color:var(--dim);">人格：</span><span>乌鸦嘴预言家</span></div>
+        <div><span style="color:var(--dim);">定位：</span><span>凶相预警 · 市场无人敢做</span></div>
+        <div><span style="color:var(--dim);">平台：</span><span>@wuyageai</span></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─── DATA ───
+const VAULT_DATA = [
+  { id:"p_001", subject:"某AI独角兽", category:"industry", alert_level:4,
+    content:"融资烧光、估值腰斩，这局早看出来了。", created_at:"2025-03-01",
+    status:"fulfilled", result:"估值从200亿跌至80亿，裁员40%", crow_score:5 },
+  { id:"p_002", subject:"某meme加密货币", category:"market", alert_level:5,
+    content:"庄家出货信号明显，散户接盘在即。凶相。", created_at:"2025-03-20",
+    status:"fulfilled", result:"72小时内暴跌63%", crow_score:5 },
+  { id:"p_003", subject:"某顶流明星", category:"celebrity", alert_level:3,
+    content:"人设太满，撑不住的。迟早塌。", created_at:"2025-04-10",
+    status:"pending", result:null, crow_score:null },
+  { id:"p_004", subject:"某新能源车企", category:"industry", alert_level:4,
+    content:"现金流有问题，供应链出现裂缝。这局不好打。", created_at:"2025-04-20",
+    status:"pending", result:null, crow_score:null },
+];
+
+const QUEUE_DATA = [
+  { id:"tw_a01", mode:"⚠️ 凶相预警", category:"行业暴雷",
+    content:"⚠️ 凶相预警\n\n某大厂——裁员信号已持续3个月。\n\n这局不好打。\n乌鸦嘴指数 4/5\n\n@wuyageai" },
+  { id:"tw_a02", mode:"✓ 预言应验", category:"市场崩盘",
+    content:"（叼着牙签）\n\n之前说某币会崩。\n\n今天：-63%\n\n#乌鸦嘴又准了 @wuyageai" },
+  { id:"tw_a03", mode:"😒 反讽点评", category:"热点翻车",
+    content:"哟，某明星塌房了。\n\n意外吗？（一点都不）" },
+  { id:"tw_a04", mode:"🀄 表情包", category:"市场崩盘",
+    content:"（掀桌）\n\n说过了！这不就来了？🀄\n\n#乌鸦嘴从不撒谎" },
+];
+
+const CAT_LABELS = { market:"市场崩盘", industry:"行业暴雷", trend:"趋势逆转", celebrity:"热点翻车" };
+const CAT_COLORS = { market:"var(--red)", industry:"var(--accent)", trend:"var(--purple)", celebrity:"var(--gold)" };
+
+// ─── CROW INDEX ───
+function calcCrowIndex() {
+  const total = VAULT_DATA.length;
+  const fulfilled = VAULT_DATA.filter(p => p.status === "fulfilled").length;
+  const pending   = VAULT_DATA.filter(p => p.status === "pending").length;
+  const accuracy  = total > 0 ? Math.round(fulfilled/total*1000)/10 : 0;
+  const level     = Math.min(5, Math.floor(accuracy/20)+1);
+  const bar       = "🖤".repeat(level) + "🤍".repeat(5-level);
+  let title;
+  if      (accuracy >= 90) title = "天命乌鸦嘴 · 神准";
+  else if (accuracy >= 75) title = "江湖大预言家 · 准";
+  else if (accuracy >= 60) title = "乌鸦嘴认证 · 稳";
+  else if (accuracy >= 40) title = "见习预言家 · 练";
+  else                     title = "凶相学徒 · 磨";
+  return { total, fulfilled, pending, accuracy, level, bar, title };
+}
+
+function updateCrowUI() {
+  const c = calcCrowIndex();
+  ["s-accuracy","detail-accuracy","sb-accuracy"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = c.accuracy + "%";
+  });
+  ["detail-bar","sb-bar"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = c.bar;
+  });
+  ["detail-title","sb-title"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = c.title;
+  });
+  ["s-total","detail-total"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = c.total;
+  });
+  ["s-fulfilled","detail-fulfilled"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = c.fulfilled;
+  });
+  ["s-pending","detail-pending"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = c.pending;
+  });
+  const badge = document.getElementById("crow-title-badge");
+  if (badge) badge.textContent = c.title.split(" · ")[0];
+}
+
+// ─── CATEGORY BARS ───
+function renderCatBars() {
+  const el = document.getElementById("cat-bars");
+  if (!el) return;
+  const cats = {};
+  VAULT_DATA.forEach(p => { cats[p.category] = (cats[p.category]||0)+1; });
+  el.innerHTML = Object.entries(cats).map(([cat, count]) => {
+    const pct = Math.round(count/VAULT_DATA.length*100);
+    return `<div style="display:flex; align-items:center; gap:.6rem;">
+      <div style="font-size:.72rem; width:60px; color:var(--dim);">${CAT_LABELS[cat]||cat}</div>
+      <div style="flex:1; height:6px; background:#1a1a1a; border-radius:3px; overflow:hidden;">
+        <div style="width:${pct}%; height:100%; background:${CAT_COLORS[cat]||'var(--accent)'}; border-radius:3px;"></div>
+      </div>
+      <div style="font-size:.7rem; color:var(--dim); min-width:20px;">${count}</div>
+    </div>`;
+  }).join("");
+}
+
+// ─── OVERVIEW PROPHECIES ───
+function renderOverviewProphecies() {
+  const el = document.getElementById("overview-prophecies");
+  if (!el) return;
+  el.innerHTML = VAULT_DATA.slice(0,3).map(p => prophecyCard(p)).join("");
+}
+
+function prophecyCard(p) {
+  const levelBar = Array.from({length:5}, (_,i) =>
+    `<span class="${i < p.alert_level ? 'on' : 'off'}"></span>`).join("");
+  const statusBadge = p.status === "fulfilled"
+    ? `<span class="card-badge badge-green">✓ 已应验</span>`
+    : `<span class="card-badge badge-gold">⏳ 待验</span>`;
+  const resultRow = p.result
+    ? `<div class="ph-result">→ ${p.result}</div>` : "";
+  return `<div class="prophecy-item ${p.status}">
+    <div class="ph-row">
+      <span class="ph-subject">${p.subject}</span>
+      ${statusBadge}
+    </div>
+    <div class="ph-level">${levelBar}</div>
+    <div class="ph-content">${p.content}</div>
+    ${resultRow}
+    <div class="ph-footer">
+      <span class="ph-cat">${CAT_LABELS[p.category]||p.category}</span>
+      <span>${p.created_at}</span>
+      ${p.crow_score ? `<span style="color:var(--accent);">⭐ ${p.crow_score}/5</span>` : ""}
+    </div>
+  </div>`;
+}
+
+// ─── VAULT PAGE ───
+function renderVault() {
+  const catFilter = document.getElementById("filter-cat")?.value || "";
+  const statusFilter = document.getElementById("filter-status")?.value || "";
+  let data = VAULT_DATA;
+  if (catFilter)    data = data.filter(p => p.category === catFilter);
+  if (statusFilter) data = data.filter(p => p.status === statusFilter);
+  const el = document.getElementById("vault-list");
+  if (!el) return;
+  el.innerHTML = data.map(p => prophecyCard(p)).join("") ||
+    `<div style="text-align:center; color:var(--dim); padding:3rem;">暂无预言</div>`;
+}
+
+// ─── QUEUE PAGE ───
+function renderQueue() {
+  const el = document.getElementById("queue-list");
+  if (!el) return;
+  el.innerHTML = QUEUE_DATA.map(t => `
+    <div class="tweet-item">
+      <div class="tweet-header">
+        <span class="tweet-mode">${t.mode}</span>
+        <span class="tweet-cat">${t.category}</span>
+      </div>
+      <div class="tweet-content">${t.content}</div>
+      <div class="tweet-actions">
+        <button class="ta-btn send">✓ 立即发布</button>
+        <button class="ta-btn edit">✏️ 编辑</button>
+        <button class="ta-btn del">✕ 删除</button>
+      </div>
+    </div>`).join("");
+}
+
+// ─── CONTENT GENERATOR ───
+let currentMode = "alert";
+
+function setMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const extraRow = document.getElementById("g-extra-row");
+  const eventRow = document.getElementById("g-event-row");
+  const detailRow = document.getElementById("g-detail-row");
+  extraRow.style.display  = mode === "fulfilled" ? "block" : "none";
+  eventRow.style.display  = (mode === "sarcasm" || mode === "meme") ? "block" : "none";
+  detailRow.style.display = (mode === "alert") ? "block" : "none";
+  document.getElementById("gen-result").classList.remove("visible");
+  document.getElementById("meme-trigger-alert").classList.remove("visible");
+  document.getElementById("gen-placeholder").style.display = "block";
+}
+
+function updateLevel(v) {
+  const icons = ["","🌥","⚠️","🔴","🚨","💀"];
+  document.getElementById("level-display").textContent = `${v}/5 ${icons[v]||""}`;
+}
+
+const TEMPLATES = {
+  alert: [
+    "⚠️ 凶相预警\n\n{subject}——{detail}\n\n这局不好打。\n乌鸦嘴指数 {level}/5\n\n@wuyageai",
+    "🐦 乌鸦嘴有话说：\n\n{subject} {detail}\n\n凶相已现。自求多福。\n\n⚠️ {level}/5",
+    "说句不好听的：\n\n{subject}，{detail}\n\n我不是在诅咒，我是在预警。\n\n乌鸦嘴指数 {level}/5",
+  ],
+  fulfilled: [
+    "（叼着牙签）\n\n之前说{subject}会{prediction}。\n\n今天：{result}\n\n#乌鸦嘴又准了 @wuyageai",
+    "🐦 预言应验 ✓\n\n预警 → 结果\n{prediction} → {result}\n\n命中。乌鸦嘴不诅咒，只说真话。\n\n@wuyageai",
+    "没什么好说的。\n\n之前预警{subject}会出问题。\n\n今天：{result}\n\n（🐦离开现场）",
+  ],
+  sarcasm: [
+    "哟，{subject}{event}了。\n\n意外吗？\n\n（一点都不）",
+    "又一个「绝对不会发生」的事情发生了。\n\n{subject}：{event}\n\n…\n\n（叼牙签）@wuyageai",
+    "🐦 早说了。\n\n{subject}{event}。就这。",
+  ],
+  meme: [
+    "（掀桌）\n\n说过了！{subject}这不就来了？🀄\n\n#乌鸦嘴从不撒谎",
+    "（叼着牙签看着你）\n\n……\n\n早。说。了。\n\n@wuyageai",
+    "凶相天降。🐦\n\n我说这不行，你们说我乌鸦嘴，然后呢？\n\n{subject}：{event}",
+  ],
+};
+
+const DANGER_WORDS = ["崩盘","暴雷","腰斩","大跌","爆仓","归零","清盘"];
+
+function generateContent() {
+  const subject = document.getElementById("g-subject").value || "该对象";
+  const detail  = document.getElementById("g-detail")?.value || "";
+  const prediction = document.getElementById("g-prediction")?.value || "出问题";
+  const result     = document.getElementById("g-result")?.value    || "果然出事了";
+  const event      = document.getElementById("g-event")?.value     || "翻车";
+  const level      = document.getElementById("g-level").value;
+
+  const tpls = TEMPLATES[currentMode];
+  const tpl  = tpls[Math.floor(Math.random() * tpls.length)];
+
+  const content = tpl
+    .replace(/{subject}/g, subject)
+    .replace(/{detail}/g, detail)
+    .replace(/{level}/g, level)
+    .replace(/{prediction}/g, prediction)
+    .replace(/{result}/g, result)
+    .replace(/{event}/g, event);
+
+  const resultEl = document.getElementById("gen-result");
+  resultEl.textContent = content;
+  resultEl.classList.add("visible");
+  document.getElementById("gen-placeholder").style.display = "none";
+
+  // meme trigger
+  const hasDanger = DANGER_WORDS.some(w => detail.includes(w) || content.includes(w));
+  const memeEl = document.getElementById("meme-trigger-alert");
+  if (hasDanger) {
+    memeEl.classList.add("visible");
+  } else {
+    memeEl.classList.remove("visible");
+  }
+}
+
+function copyContent() {
+  const text = document.getElementById("gen-result").textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    btn.textContent = "✓ 已复制";
+    setTimeout(() => btn.textContent = "📋 复制", 1500);
+  });
+}
+
+function copyMeme(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const el = event.target.closest(".meme-card") || event.target;
+    const orig = el.style.borderColor;
+    el.style.borderColor = "var(--green)";
+    setTimeout(() => el.style.borderColor = orig, 800);
+  });
+}
+
+// ─── PAGE ROUTER ───
+function showPage(name) {
+  ["overview","vault","generator","queue","memes","log","settings"].forEach(p => {
+    document.getElementById("page-"+p).style.display = p === name ? "block" : "none";
+  });
+  document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+  event.currentTarget.classList.add("active");
+
+  if (name === "vault")     renderVault();
+  if (name === "queue")     renderQueue();
+}
+
+// ─── INIT ───
+updateCrowUI();
+renderCatBars();
+renderOverviewProphecies();
+updateLevel(3);
+</script>
+
 </body>
 </html>
