@@ -534,6 +534,7 @@
         <div class="card-header">
           <div class="card-title">生成结果</div>
           <button class="ta-btn send" onclick="copyContent()" style="font-size:.72rem;">📋 复制</button>
+          <button class="ta-btn send" onclick="autoPostFromGenerator(this)" style="font-size:.72rem; margin-left:.5rem; border-color:var(--green); color:var(--green);">🚀 发推</button>
         </div>
         <div class="gen-output" id="gen-result"></div>
         <div class="meme-trigger" id="meme-trigger-alert">
@@ -869,20 +870,67 @@ function renderVault() {
 }
 
 // ─── QUEUE PAGE ───
+// ─── API 配置 ───
+const API_BASE = window.location.origin;
+
+// ─── 真实发推函数 ───
+async function postTweet(content, btn) {
+  if (!content || !content.trim()) { alert("推文内容为空"); return; }
+  if (content.length > 280) { alert(`推文过长：${content.length} 字符（最多 280）`); return; }
+  const orig = btn ? btn.textContent : "";
+  if (btn) { btn.disabled = true; btn.textContent = "发送中..."; }
+  try {
+    const res = await fetch(`${API_BASE}/api/tweets/post`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (btn) { btn.textContent = "✓ 已发布"; btn.style.color = "var(--green)"; }
+      showToast(`🐦 推文已发布！<a href="${data.url}" target="_blank" style="color:var(--accent);">查看</a>`);
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
+      showToast("❌ 发布失败：" + (data.error || "未知错误"), true);
+    }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+    showToast("❌ 网络错误：" + e.message, true);
+  }
+}
+
+// ─── Toast 通知 ───
+function showToast(html, isError = false) {
+  let t = document.getElementById("toast-msg");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "toast-msg";
+    t.style.cssText = "position:fixed;bottom:2rem;right:2rem;z-index:9999;padding:.75rem 1.25rem;border-radius:8px;font-size:.82rem;max-width:320px;line-height:1.5;box-shadow:0 4px 20px rgba(0,0,0,.4);";
+    document.body.appendChild(t);
+  }
+  t.style.background = isError ? "#4a1111" : "#1a2a1a";
+  t.style.border = `1px solid ${isError ? "var(--red)" : "var(--green)"}`;
+  t.style.color = "#e0e0e0";
+  t.innerHTML = html;
+  t.style.display = "block";
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.display = "none", 4000);
+}
+
 function renderQueue() {
   const el = document.getElementById("queue-list");
   if (!el) return;
-  el.innerHTML = QUEUE_DATA.map(t => `
-    <div class="tweet-item">
+  el.innerHTML = QUEUE_DATA.map((t, i) => `
+    <div class="tweet-item" id="qi-${i}">
       <div class="tweet-header">
         <span class="tweet-mode">${t.mode}</span>
         <span class="tweet-cat">${t.category}</span>
       </div>
       <div class="tweet-content">${t.content}</div>
       <div class="tweet-actions">
-        <button class="ta-btn send">✓ 立即发布</button>
+        <button class="ta-btn send" onclick="postTweet(QUEUE_DATA[${i}].content, this)">✓ 立即发布</button>
         <button class="ta-btn edit">✏️ 编辑</button>
-        <button class="ta-btn del">✕ 删除</button>
+        <button class="ta-btn del" onclick="document.getElementById('qi-${i}').remove()">✕ 删除</button>
       </div>
     </div>`).join("");
 }
@@ -967,6 +1015,16 @@ function generateContent() {
   } else {
     memeEl.classList.remove("visible");
   }
+}
+
+// ─── 从生成器直接发推 ───
+async function autoPostFromGenerator(btn) {
+  const content = document.getElementById("gen-result").textContent;
+  if (!content || content.trim() === "预言将在此显示…") {
+    showToast("⚠️ 请先生成内容", true);
+    return;
+  }
+  await postTweet(content, btn);
 }
 
 function copyContent() {
