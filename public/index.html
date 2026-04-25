@@ -988,7 +988,7 @@ function initPublicTweets() {
         [selected[i], selected[j]] = [selected[j], selected[i]];
     }
     
-    selected.forEach((tweet, i) => {
+    selected.slice(0, 2).forEach((tweet, i) => {
         const card = document.createElement('div');
         card.className = 'tweet-card';
         card.style.animationDelay = `${i * 0.08}s`;
