@@ -826,7 +826,7 @@ const TWEET_POOL = {
         { text: "你跟某人说话特别投机，可能不只是性格合适。是你们的数字频率在共振，这很罕见，别错过。", tags: ["#数字共振", "#灵魂连接"], likes: 5123, reposts: 1567 },
         { text: "分手之后最难放下的，往往是数字缘分最深的那一个。这不是执念，是灵魂级别的印记。", tags: ["#数字缘分", "#放下执念"], likes: 4567, reposts: 1432 },
         { text: "数字<span class='highlight'>4</span>在感情里要的，不是浪漫，是稳定。如果你给不了他安全感，再深的爱也留不住。", tags: ["#数字4感情", "#安全感"], likes: 1876, reposts: 567 },
-        { text: "你总是遇到错的人？先看看你的"吸引力数字"——你的磁场，正在精准吸引着你最需要面对的课题。", tags: ["#吸引力数字", "#命运课题"], likes: 3234, reposts: 976 },
+        { text: "你总是遇到错的人？先看看你的「吸引力数字」——你的磁场，正在精准吸引着你最需要面对的课题。", tags: ["#吸引力数字", "#命运课题"], likes: 3234, reposts: 976 },
         { text: "两个人能不能走到最后，命理可以看出七成。剩下三成，看你们愿不愿意为对方改变。", tags: ["#感情配对", "#命理分析"], likes: 2789, reposts: 834 },
         { text: "数字<span class='highlight'>7</span>的人在感情里：你不难追，但很难留。因为能留住你的，得先留住你的大脑。", tags: ["#数字7感情", "#精神连接"], likes: 3876, reposts: 1156 },
     ],
@@ -852,7 +852,7 @@ const TWEET_POOL = {
         { text: "大多数人的痛苦，来自活在别人的轨道里，用别人的标准，衡量自己的人生。", tags: ["#自我觉醒", "#金句"], likes: 9123, reposts: 3234 },
         { text: "你的出生日期是一串密码。大多数人用了一辈子，也没解开它。", tags: ["#生命密码", "#金句"], likes: 6789, reposts: 2345 },
         { text: "命理是镜子，不是围墙。它让你看清自己，而不是把你困在命里。", tags: ["#命理观", "#金句"], likes: 4567, reposts: 1543 },
-        { text: "有些人天生就是来打破规则的。他们的数字结构里，没有"稳定"这个词。", tags: ["#破局者", "#金句"], likes: 5876, reposts: 1987 },
+        { text: "有些人天生就是来打破规则的。他们的数字结构里，没有「稳定」这个词。", tags: ["#破局者", "#金句"], likes: 5876, reposts: 1987 },
         { text: "我见过太多聪明人，败在不了解自己的模式。聪明管用，但自知更管用。", tags: ["#自知者胜", "#金句"], likes: 7234, reposts: 2456 },
         { text: "你改变不了命，但可以改变你和命之间的关系。这才是数字命理给你的真正礼物。", tags: ["#命理智慧", "#金句"], likes: 5432, reposts: 1832 },
         { text: "频率相同的两个人走到一起，从来不是巧合。是数字在磁场层面完成的精准匹配。", tags: ["#磁场共振", "#金句"], likes: 6123, reposts: 2089 },
@@ -888,12 +888,11 @@ function generateTweet() {
         generatedTweets.clear();
         totalDeduplicated++;
         document.getElementById('dashDedupeCount').textContent = totalDeduplicated;
-        // 提示用户
-        const notice = document.getElementById('dashTweetList');
+        const list = document.getElementById('dashTweetList');
         const tip = document.createElement('div');
-        tip.style.cssText = 'text-align:center;color:#C9A84C;padding:12px;font-size:13px;opacity:0.8;';
+        tip.style.cssText = 'text-align:center;color:#C9A84C;padding:12px;font-size:13px;opacity:0.8;border-top:1px solid rgba(201,168,76,0.2);margin-top:8px;';
         tip.textContent = '── 已循环完60条推文，重新开始 ──';
-        notice.prepend(tip);
+        list.appendChild(tip);
         return generateTweet();
     }
     
@@ -972,10 +971,10 @@ function initPublicTweets() {
     grid.innerHTML = '';
     const selected = [];
     const cats = Object.keys(TWEET_POOL);
-    // 每类随机取2条，jinju取3条（金句最适合传播）
+    // 每类随机取2条，jinju取3条（金句最有传播力）
     cats.forEach(cat => {
         const pool = [...TWEET_POOL[cat]];
-        // Fisher-Yates shuffle
+        // Fisher-Yates 洗牌
         for (let i = pool.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -983,7 +982,7 @@ function initPublicTweets() {
         const count = cat === 'jinju' ? 3 : 2;
         pool.slice(0, count).forEach(t => selected.push({ ...t, cat }));
     });
-    // 打乱顺序展示
+    // 打乱最终顺序
     for (let i = selected.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [selected[i], selected[j]] = [selected[j], selected[i]];
@@ -1008,9 +1007,6 @@ function initPublicTweets() {
             </div>
             <div>${tweet.tags.map(t => `<span class="tweet-tag">${t}</span>`).join(' ')}</div>
         `;
-        grid.appendChild(card);
-    });
-}
         grid.appendChild(card);
     });
 }
