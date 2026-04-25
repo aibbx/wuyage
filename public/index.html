@@ -528,7 +528,42 @@ footer a { color: var(--gold); text-decoration: none; }
     .stat-val { font-size: 22px; }
     .dash-stats { grid-template-columns: repeat(2, 1fr); }
     section { padding: 60px 16px; }
-    .tweets-grid { grid-template-columns: 1fr; }
+    .tweets-grid { grid-template-columns: 1fr; gap: 14px; }
+    .features-grid { grid-template-columns: 1fr; gap: 16px; }
+    .nav-cta { display: none; }
+}
+@media (max-width: 600px) {
+    nav { padding: 0 14px; height: 52px; }
+    .nav-links { gap: 8px; }
+    .nav-links a:not([href="#"]):not([href="#services"]) { display: none; }
+    .nav-brand { font-size: 14px; }
+    .hero { padding: 74px 16px 36px; }
+    .hero-name { font-size: 24px; letter-spacing: 1px; }
+    .hero-bio { font-size: 14px; margin-bottom: 24px; }
+    .hero-cta { padding: 11px 22px; font-size: 14px; }
+    .avatar { width: 82px; height: 82px; }
+    .stats { gap: 20px; }
+    .stat-val { font-size: 20px; }
+    .stat-label { font-size: 11px; }
+    section { padding: 40px 14px; }
+    #tweets { padding: 36px 14px; margin: 16px 10px; border-radius: 14px; }
+    .section-title { font-size: 22px; }
+    .section-desc { font-size: 13px; margin-bottom: 24px; }
+    .tweet-card { padding: 16px 14px; border-radius: 12px; }
+    .tweet-content { font-size: 14px; line-height: 1.65; }
+    .tweet-avatar { width: 34px; height: 34px; }
+    .feature-card { padding: 20px 16px; border-radius: 14px; }
+    .feature-icon { width: 46px; height: 46px; border-radius: 12px; }
+    .feature-icon svg { width: 22px !important; height: 22px !important; }
+    .feature-title { font-size: 16px; }
+    .feature-desc { font-size: 13px; }
+    .x-embed { padding: 36px 16px; border-radius: 14px; }
+    footer { padding: 28px 16px; }
+    .gen-btns { flex-wrap: wrap; gap: 6px; }
+    .gen-btn { font-size: 12px; padding: 6px 10px; }
+    .dash-nav { padding: 0 14px; }
+    .dash-card { padding: 18px 14px; border-radius: 12px; }
+    .dash-card-value { font-size: 22px; }
 }
 </style>
 </head>
@@ -596,32 +631,32 @@ footer a { color: var(--gold); text-decoration: none; }
     <p class="section-desc">融合数字命理与AI技术，为你提供独特的命运解读服务</p>
     <div class="features-grid">
         <div class="feature-card fade-in">
-            <div class="feature-icon">🔢</div>
+            <div class="feature-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg></div>
             <h3 class="feature-title">生命数字解读</h3>
             <p class="feature-desc">通过生日数字，揭示你的天赋潜能、性格特质与人生使命。数字不会说谎。</p>
         </div>
         <div class="feature-card fade-in">
-            <div class="feature-icon">💰</div>
+            <div class="feature-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
             <h3 class="feature-title">财富数字密码</h3>
             <p class="feature-desc">找到属于你的财富幸运数字，让理财、投资、创业都顺风顺水。</p>
         </div>
         <div class="feature-card fade-in">
-            <div class="feature-icon">💕</div>
+            <div class="feature-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"/></svg></div>
             <h3 class="feature-title">情感数字合盘</h3>
             <p class="feature-desc">两个人的生日数字，隐藏着相容度的真相。高人都懂数字的力量。</p>
         </div>
         <div class="feature-card fade-in">
-            <div class="feature-icon">🚀</div>
+            <div class="feature-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></div>
             <h3 class="feature-title">事业天赋定位</h3>
             <p class="feature-desc">你的数字决定了你在职场中的定位，找到对的位置，成功事半功倍。</p>
         </div>
         <div class="feature-card fade-in">
-            <div class="feature-icon">🎯</div>
+            <div class="feature-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
             <h3 class="feature-title">数字能量调频</h3>
             <p class="feature-desc">用数字能量调整你的日常：选择幸运数字、幸运色、幸运方位。</p>
         </div>
         <div class="feature-card fade-in">
-            <div class="feature-icon">🤖</div>
+            <div class="feature-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></div>
             <h3 class="feature-title">AI命理智能体</h3>
             <p class="feature-desc">乌鸦哥训练的数字命理AI，24小时在线，随时为你解答命运疑惑。</p>
         </div>
@@ -686,7 +721,7 @@ footer a { color: var(--gold); text-decoration: none; }
 
         <!-- 推文生成区域 -->
         <div class="dash-tweets">
-            <h2 class="dash-section-title">🎯 AI 推文生成器</h2>
+            <h2 class="dash-section-title">AI 推文生成器</h2>
             <div class="tweet-gen-controls">
                 <button class="gen-btn active" data-cat="all" onclick="setCategory('all')">全部</button>
                 <button class="gen-btn" data-cat="mingli" onclick="setCategory('mingli')">命理解读</button>
@@ -697,14 +732,14 @@ footer a { color: var(--gold); text-decoration: none; }
             </div>
             <div class="dash-tweet-list" id="dashTweetList"></div>
             <div class="dash-tweet-actions">
-                <button class="action-btn" onclick="generateTweet()">✨ 生成新推文</button>
-                <button class="action-btn" onclick="generateBatch(5)">📝 批量生成 5 条</button>
-                <button class="action-btn copy" onclick="copyAll()">📋 复制全部</button>
+                <button class="action-btn" onclick="generateTweet()">生成推文</button>
+                <button class="action-btn" onclick="generateBatch(5)">批量生成 5 条</button>
+                <button class="action-btn copy" onclick="copyAll()">复制全部</button>
             </div>
         </div>
 
         <!-- 活动记录 -->
-        <h2 class="dash-section-title">📊 最近动态</h2>
+        <h2 class="dash-section-title">最近动态</h2>
         <div class="dash-activity">
             <div class="dash-activity-item">
                 <div class="dash-dot"></div>
@@ -728,7 +763,7 @@ footer a { color: var(--gold); text-decoration: none; }
 <!-- LOGIN MODAL -->
 <div class="modal" id="loginModal">
     <div class="modal-box">
-        <h2 class="modal-title">🔐 Dashboard 登录</h2>
+        <h2 class="modal-title">Dashboard 登录</h2>
         <p class="modal-sub">仅限授权用户访问</p>
         <input type="email" class="modal-input" id="loginEmail" placeholder="邮箱地址" autocomplete="email">
         <input type="password" class="modal-input" id="loginPass" placeholder="访问密码" autocomplete="current-password">
@@ -865,8 +900,8 @@ function addTweetToList(tweet) {
         <div class="dash-tweet-cat">${getCatName(tweet.cat)}</div>
         <div class="dash-tweet-text">${tweet.text}</div>
         <div class="dash-tweet-meta">
-            <span class="tweet-stat">❤️ ${tweet.likes}</span>
-            <span class="tweet-stat">🔄 ${tweet.reposts}</span>
+            <span class="tweet-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ${tweet.likes}</span>
+            <span class="tweet-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> ${tweet.reposts}</span>
         </div>
         <div style="margin-top: 8px;">
             ${tweet.tags.map(t => `<span class="tweet-tag">${t}</span>`).join(' ')}
@@ -878,11 +913,11 @@ function addTweetToList(tweet) {
 // 分类名称映射
 function getCatName(cat) {
     const names = {
-        mingli: '📊 命理解读',
-        caifu: '💰 财富数字',
-        ganqing: '💕 情感关系',
-        shiye: '🚀 事业天赋',
-        jinju: '✨ 乌鸦金句'
+        mingli: '命理解读',
+        caifu: '财富数字',
+        ganqing: '情感关系',
+        shiye: '事业天赋',
+        jinju: '乌鸦金句'
     };
     return names[cat] || cat;
 }
@@ -905,11 +940,26 @@ function copyAll() {
     });
 }
 
-// 首页推文展示（随机展示8条不重复的）
+// 首页推文展示（每类各取1-2条，保证多样性，无重复）
 function initPublicTweets() {
     const grid = document.getElementById('tweetsGrid');
-    const allTweets = getAllTweets();
-    const shuffled = allTweets.sort(() => Math.random() - 0.5).slice(0, 8);
+    // 每个分类随机取1-2条，确保内容多样
+    const selected = [];
+    const cats = Object.keys(TWEET_POOL);
+    // 先每类取1条
+    cats.forEach(cat => {
+        const pool = [...TWEET_POOL[cat]];
+        const idx = Math.floor(Math.random() * pool.length);
+        selected.push({ ...pool[idx], cat });
+        pool.splice(idx, 1);
+        // jinju类额外再取1条
+        if (cat === 'jinju' || cat === 'mingli') {
+            const idx2 = Math.floor(Math.random() * pool.length);
+            selected.push({ ...pool[idx2], cat });
+        }
+    });
+    // 打乱顺序展示
+    const shuffled = selected.sort(() => Math.random() - 0.5);
     
     shuffled.forEach((tweet, i) => {
         const card = document.createElement('div');
@@ -925,8 +975,8 @@ function initPublicTweets() {
             </div>
             <div class="tweet-content">${tweet.text}</div>
             <div class="tweet-footer">
-                <span class="tweet-stat">❤️ ${tweet.likes}</span>
-                <span class="tweet-stat">🔄 ${tweet.reposts}</span>
+                <span class="tweet-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ${tweet.likes}</span>
+                <span class="tweet-stat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> ${tweet.reposts}</span>
             </div>
             <div>${tweet.tags.map(t => `<span class="tweet-tag">${t}</span>`).join(' ')}</div>
         `;
@@ -1012,7 +1062,13 @@ document.addEventListener('DOMContentLoaded', () => {
     60% { transform: translateX(-6px); }
     80% { transform: translateX(6px); }
 }
-</style>
+
+@media (max-width: 600px) {
+    .dash-grid { grid-template-columns: 1fr; }
+    .dash-section-title { font-size: 16px; }
+    .dash-tweet-item { padding: 14px 12px; border-radius: 10px; }
+    .gen-btns { flex-wrap: wrap; }
+}</style>
 
 </body>
 </html>
