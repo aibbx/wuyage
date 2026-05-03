@@ -5,12 +5,19 @@
     {
       "src": "api/index.py",
       "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "15mb"
-      }
+      "config": { "maxLambdaSize": "15mb" }
+    },
+    {
+      "src": "api/cron.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "15mb" }
     }
   ],
   "routes": [
+    {
+      "src": "/api/cron",
+      "dest": "api/cron.py"
+    },
     {
       "src": "/api/(.*)",
       "dest": "api/index.py"
@@ -42,18 +49,9 @@
     {
       "source": "/api/(.*)",
       "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization"
-        }
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     }
   ]
