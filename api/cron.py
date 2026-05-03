@@ -1,137 +1,161 @@
 """
-乌鸦嘴预言家 — Vercel Cron Handler
-独立文件，直接映射 /api/cron，修复 "Sandbox not available" 错误
+乌鸦哥 AI Agent — Vercel Cron Handler
+每日 UTC 09:00 自动发推（北京时间 17:00）
+修复：Hobby plan 单 cron + OAuth 1.0a 纯标准库签名 + Claude 生成内容
 """
 
 from http.server import BaseHTTPRequestHandler
-import json, os, random, re
+import json, os, random, re, time, hmac, hashlib, urllib.parse, urllib.request, base64
 from datetime import datetime, timezone
 
-# ──────────────────────────────────────
-#  乌鸦嘴预言家 IP 推文池（60条，零重复）
-# ──────────────────────────────────────
-TWEET_POOL = [
+# ─────────────────────────────────────
+#  Claude 生成推文
+# ─────────────────────────────────────
+
+SYSTEM_PROMPT = """你是「乌鸦嘴预言家」——看透人间百态、说话直戳痛点的犀利观察者。
+
+人设：
+- 语气冷静低沉，一针见血，字字带刺
+- 江湖老炮智慧 + 现代社会毒点评
+- 只说被刻意回避的真相，不讲正能量鸡汤
+- 结尾固定签名：「— 乌鸦嘴，说到 🐦‍⬛」
+
+格式要求（严格执行）：
+- 纯文本，无任何 Markdown（不用 # ** --- 等）
+- 总长度：60-180 字
+- 结构：现象/反问 → 翻转认知 → 一句点睛
+- 空行分段，节奏感强
+- 最多 1 个 emoji（只在签名行）
+- 禁止 hashtag
+
+只输出推文正文，无任何说明。"""
+
+FALLBACK_TWEETS = [
     "有人问我：股市跌了该不该抄底？\n\n叼着牙签想了三秒：你连上一个底在哪都不知道，你抄的是个寂寞。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "港片教了我一件事：\n\n最危险的不是拿刀的人，是拍你肩膀说「放心，我帮你」的人。\n\n职场、商场，通用。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "市场永远不缺聪明人。\n\n但聪明人最容易死在一件事上：他们以为自己看穿了局，其实他们才是局里那个。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "打工人三大幻觉：\n1. 老板说的「等公司好了」\n2. 项目说的「快上线了」\n3. 自己说的「再熬一年」\n\n哪一个实现了，告诉我。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "内卷的本质不是努力，是恐惧。\n\n你不是真的想赢，你只是怕输。\n\n这两件事，结果完全不同。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "见过太多人，把「忙」当成护身符。\n\n越忙越有价值？那叫自我欺骗。\n\n真正值钱的人，都在想怎么不用那么忙。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "有些公司的使命愿景价值观，\n写得比诗还美。\n\n真相是：那是用来对外募资和对内画饼的，\n不是用来兑现的。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "行情好的时候，人人都是股神。\n行情差的时候，才知道谁在裸泳。\n\n这句话巴菲特说过。\n但他忘了说：裸泳的那个，经常是你自己。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "有些公司的使命愿景价值观，写得比诗还美。\n\n真相是：那是用来对外募资和对内画饼的，不是用来兑现的。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "行情好的时候，人人都是股神。\n行情差的时候，才知道谁在裸泳。\n\n巴菲特说过这句话，但他忘了说：裸泳的那个，经常是你自己。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "年轻人最贵的学费不是培训班，\n是那个「跟对了人，少奋斗十年」的信念。\n\n十年后发现，跟的那个人先跑了。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "古惑仔里最值得学的不是打架，\n是那句「出来混，迟早要还的」。\n\n适用于：加杠杆、走捷径、透支信用。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「我只是说说而已」\n\n说这句话的人，从来不是真的只说说。\n\n听懂了，能少踩很多坑。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "融资到位叫「战略布局」，\n融资没到位叫「方向调整」，\n快撑不住了叫「精益创业」。\n\n你现在明白那些创业词汇了吗？\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "降薪的时候说「共渡难关」，\n涨薪的时候说「市场行情」。\n\n这不是巧合，这是设计。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "有三种会议，开了等于没开：\n1. 问题没人负责的会\n2. 结论不执行的会\n3. 你开完还要开的会\n\n你今天开了几个？\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "最贵的不是时间，是注意力。\n\n但大多数人的注意力，被手机、会议、别人的焦虑，\n一点一点地偷走了。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "见过很多人问：我该跳槽吗？\n\n真实答案：你连「你要去哪」都不知道，跳了也是原地打转。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "大厂裁员的逻辑很简单：\n养不起你，但不想说是自己问题，\n所以叫「组织优化」。\n\n文明的说法，不改变裸的事实。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "讲道理，有时候不是为了说服对方，\n是为了让自己显得文明。\n\n尤其是吵架的时候。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "很多人说「我只是运气不好」。\n\n不是。\n运气不好是偶尔一次。\n每次都不好，叫做系统性问题。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "创业公司最常见的死法：\n不是被竞争对手干掉，\n是被自己人耗死的。\n\n信任成本，才是最贵的成本。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "最贵的不是时间，是注意力。\n\n但大多数人的注意力，被手机、会议、别人的焦虑，一点一点地偷走了。\n\n— 乌鸦嘴，说到 🐦‍⬛",
     "那些说「钱不重要」的人，\n要么已经有很多钱，\n要么是在用这句话骗你少要钱。\n\n两种情况，都值得警惕。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "港片黄金年代，大佬们都有一个特点：\n说话少，做事狠，承诺必兑现。\n\n现在满街都是说话多、做事飘、承诺像废纸的人。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "有人问：怎么判断一个人靠不靠谱？\n\n看他怎么处理「小事」。\n大事人人都认真，小事才见真章。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「努力就会成功」这句话，\n是成功者讲给没成功的人听的。\n\n他们忘了说：运气、时机、资源，占了多少。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "AI热潮里，90%的人在做的事：\n把旧东西换个皮，贴上「AI赋能」四个字，\n然后去找投资人。\n\n泡沫长什么样？就这样。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "最有效的谎言，\n是那种你自己也相信的谎言。\n\n所以别太快相信那些「言之凿凿」的人。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "副业成功的概率和买彩票差不多，\n但推销副业课程的成功率接近100%。\n\n你明白谁在赚谁的钱了吗？\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "职场里最危险的一句话：\n「你放心，这事我来」。\n\n放心两个字，往往是最不该放心的开始。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "那些越来越难用的App，\n不是团队变差了。\n是他们开始把你当成产品，而不是用户。\n\n你用App，还是App在用你？\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "市场涨的时候，专家讲逻辑。\n市场跌的时候，专家讲情绪。\n\n两套话都能自洽。\n这就是为什么专家永远不会错。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "以为「佛系」是一种智慧，\n其实很多时候只是懒惰找了个高级的名字。\n\n躺平和认命之间，只差一个借口。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "见过很多「全力以赴」的人，\n最后burnout的原因，\n是方向错了，力气全白费。\n\n方向比速度重要，这不是鸡汤，是事实。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「这次不一样」是金融史上最贵的五个字。\n\n每次泡沫破裂前，都有人在说这五个字。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "人到中年，最大的奢侈品不是包不是车，\n是「不用看谁脸色」这件事。\n\n为这件事值得拼一次。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "有些人天生会「借势」：\n市场好，说自己眼光准；\n市场差，说大环境不好。\n\n反正永远不是自己的问题。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "很多人说「我在积累经验」，\n其实只是在重复同一个错误，重复了五年。\n\n经验和年限，不是一回事。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "最好的时机永远已经过去。\n最坏的投资永远是「当时如果……」。\n\n与其后悔，不如现在就做一个能后悔的决定。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "那些开口就是「情怀」的生意人，\n要么真的亏了很多钱，\n要么正准备让你亏钱。\n\n情怀和商业逻辑，分清楚。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "职场规则第一条：\n你以为的公平，\n是别人设计好的游戏规则。\n\n玩之前，先搞清楚谁是庄家。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「我相信人性本善」——\n这句话，在钱和权面前，\n每次都输。\n\n不是悲观，是现实。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "很多创业者最后的终点：\n公司没了，但微信公众号还在更新。\n题目叫「我经历了这次失败，学到了什么」。\n\n下一个坑已经在等你了。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "大厂的「使命感」，\n到了绩效考核那天，\n会被「数据不达标」秒杀。\n\n一切都是生意，别搞混了。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "最能看出一家公司文化的时刻：\n不是上升期，\n是出问题时，怎么处理和怎么甩锅。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "有一种成功叫「幸存者偏差」：\n你只看到了留下来的赢家，\n没看到离开的那100个输家。\n\n下次看「成功学」，记得问问样本量。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「认知升级」这个词，\n现在被用烂了。\n\n真正的认知升级只有一种：\n曾经坚信的东西，被现实打脸之后，你改变了。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "散户亏钱的原因，\n从来不是信息不够，\n是明明知道该怎么做，偏要反着来。\n\n情绪，才是最大的敌人。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「我为团队牺牲了很多」——\n没有人记得你牺牲了什么。\n\n这不是无情，是结构性遗忘。\n写进合同里的才算数。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "合伙创业最后分崩离析的，\n十个里面有九个，\n不是商业模式出了问题，\n是创始人之间出了问题。\n\n人是最大的变量。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「风口来了猪都能飞」——\n这句话没说完。\n\n风停之后，猪摔死的概率，比鸟高很多。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "见过太多人，把「忠诚」给了一家公司，\n最后换来一封裁员邮件，\n礼貌而有温度，\n残忍而无意外。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "有些话，越解释越像欲盖弥彰。\n\n沉默，有时候是最有力量的答案。\n古惑仔里的大佬，从不解释自己。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "学历是门票，不是结果。\n\n你以为进了场就赢了，\n但里面的规则，学校从来没教过你。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「稳定的工作」在这个时代，\n是一种需要持续验证的假设，\n不是一个可以依赖的事实。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "互联网行业最大的谎言之一：\n用户第一。\n\n广告收入第一、GMV第一、DAU第一。\n用户在第几？\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "能力让你进入游戏，\n人脉让你知道游戏规则，\n运气决定你进入的时机。\n\n三样缺一样，都可能功亏一篑。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "「等我有钱了……」\n\n说这话的人，大多数等到有钱了，\n却发现当初想做的事，\n要么不想做了，要么来不及了。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "乌鸦嘴今日预言：\n\n某独角兽三季报之后，会出现一波「战略聚焦」。\n战略聚焦的意思是：非核心业务，也就是大多数员工，再见。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "有人说AI要取代人类。\n我说：先看看它取代了哪种人。\n\n重复性思维的人，先走。\n会提问、会判断、会承担责任的，\n暂时还安全。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "港片里混社团的人有一条铁律：\n钱可以少拿，脸不能不要。\n\n现代职场里，很多人把这条颠倒了。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "预言今日：\n\n又有一个「颠覆行业的创业公司」，\n今天在某个办公室，\n悄悄把服务器关了。\n\n没有公告，只有404。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "创业公司最常见的死法：\n不是被竞争对手干掉，\n是被自己人耗死的。\n\n信任成本，才是最贵的成本。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "大厂裁员的逻辑很简单：\n养不起你，但不想说是自己问题，\n所以叫「组织优化」。\n\n文明的说法，不改变裸的事实。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "很多人说「我只是运气不好」。\n\n不是。运气不好是偶尔一次，每次都不好，叫做系统性问题。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "「我只是说说而已」\n\n说这句话的人，从来不是真的只说说。\n\n听懂了，能少踩很多坑。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "融资到位叫「战略布局」，\n融资没到位叫「方向调整」，\n快撑不住了叫「精益创业」。\n\n你现在明白那些创业词汇了吗？\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "见过很多人问：我该跳槽吗？\n\n真实答案：你连「你要去哪」都不知道，跳了也是原地打转。\n\n— 乌鸦嘴，说到 🐦‍⬛",
 ]
 
 
-def generate_tweet() -> str:
-    """从推文池随机选一条，或用 Claude 生成（如果有 API key）"""
-    # 尝试用 Claude 生成
+def generate_tweet_with_claude() -> str:
+    """用 Claude API 生成一条乌鸦嘴风格推文"""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if api_key:
-        try:
-            import anthropic
-            client = anthropic.Anthropic(api_key=api_key)
+    if not api_key:
+        return random.choice(FALLBACK_TWEETS)
 
-            angles = [
-                "当前AI热潮泡沫信号",
-                "大厂裁员潮背后的真相",
-                "年轻人被「努力」绑架这件事",
-                "港片里的江湖规则对应现代职场",
-                "散户亏钱的心理机制",
-                "创业公司死亡的真实原因",
-                "打工人的三大幻觉",
-                "信息茧房怎么毁掉一个聪明人",
-                "「稳定工作」在2025年是不是伪命题",
-                "内卷的本质是什么",
-            ]
-            angle = random.choice(angles)
+    # 随机选一个话题注入，避免重复
+    topics = [
+        "职场潜规则里没人明说的那件事",
+        "金融市场里散户永远学不会的一课",
+        "创业圈最流行的一个谎言",
+        "社交媒体上最虚伪的一种表演",
+        "人到中年才看透的一个人性弱点",
+        "港片教会我的一句江湖真理",
+        "阶层固化背后谁不想让你知道的真相",
+        "中产焦虑的本质是什么",
+        "信任崩塌的那一刻是怎么开始的",
+        "时代红利消退之后，谁在裸泳",
+    ]
+    topic = random.choice(topics)
 
-            msg = client.messages.create(
-                model="claude-opus-4-5",
-                max_tokens=400,
-                messages=[{
-                    "role": "user",
-                    "content": f"""你是「乌鸦哥」，网名「乌鸦嘴预言家」。香港电影黄金年代的行走传说，张耀扬「乌鸦」IP的延伸。
+    req_body = json.dumps({
+        "model": "claude-opus-4-5",
+        "max_tokens": 400,
+        "system": SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": f"今日话题：{topic}"}]
+    }).encode("utf-8")
 
-核心特质：
-- 口头禅：叼着牙签，冷静毒舌
-- 语气：反直觉、霸气、市井智慧
-- 绝对禁止：心灵鸡汤、空洞正能量、说教感
-- 结尾必须是：— 乌鸦嘴，说到 🐦‍⬛
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=req_body,
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data["content"][0]["text"].strip()
+    except Exception:
+        return random.choice(FALLBACK_TWEETS)
 
-今天的话题角度：{angle}
 
-写一条150-250字的推文，要有具体的细节或比喻，不能只是空话大道理。"""
-                }]
-            )
-            text = msg.content[0].text.strip()
-            if text and len(text) > 50:
-                return text
-        except Exception as e:
-            print(f"Claude API error: {e}")
+# ─────────────────────────────────────
+#  OAuth 1.0a 签名（纯标准库，零依赖）
+# ─────────────────────────────────────
 
-    # 回退到推文池
-    return random.choice(TWEET_POOL)
+def _percent_encode(s: str) -> str:
+    return urllib.parse.quote(str(s), safe="")
 
+
+def _oauth1_header(method: str, url: str, params: dict,
+                   api_key: str, api_secret: str,
+                   token: str, token_secret: str) -> str:
+    nonce = hashlib.md5(str(time.time()).encode()).hexdigest()
+    ts = str(int(time.time()))
+
+    oauth_params = {
+        "oauth_consumer_key": api_key,
+        "oauth_nonce": nonce,
+        "oauth_signature_method": "HMAC-SHA1",
+        "oauth_timestamp": ts,
+        "oauth_token": token,
+        "oauth_version": "1.0",
+    }
+
+    all_params = {**params, **oauth_params}
+    sorted_params = "&".join(
+        f"{_percent_encode(k)}={_percent_encode(v)}"
+        for k, v in sorted(all_params.items())
+    )
+
+    base = "&".join([
+        _percent_encode(method.upper()),
+        _percent_encode(url),
+        _percent_encode(sorted_params),
+    ])
+
+    signing_key = f"{_percent_encode(api_secret)}&{_percent_encode(token_secret)}"
+    signature = hmac.new(signing_key.encode(), base.encode(), hashlib.sha1)
+    oauth_params["oauth_signature"] = base64.b64encode(signature.digest()).decode()
+
+    header_parts = ", ".join(
+        f'{k}="{_percent_encode(v)}"'
+        for k, v in sorted(oauth_params.items())
+    )
+    return f"OAuth {header_parts}"
+
+
+# ─────────────────────────────────────
+#  发推
+# ─────────────────────────────────────
 
 def post_tweet(text: str) -> dict:
-    """用 OAuth 1.0a 发推"""
-    import tweepy
-    api_key    = os.environ.get("TWITTER_API_KEY")
-    api_secret = os.environ.get("TWITTER_API_SECRET")
-    acc_token  = os.environ.get("TWITTER_ACCESS_TOKEN")
-    acc_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
+    """用 OAuth 1.0a 签名发推（纯标准库）"""
+    api_key    = os.environ.get("TWITTER_API_KEY", "")
+    api_secret = os.environ.get("TWITTER_API_SECRET", "")
+    acc_token  = os.environ.get("TWITTER_ACCESS_TOKEN", "")
+    acc_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET", "")
 
     if not all([api_key, api_secret, acc_token, acc_secret]):
         missing = [k for k, v in {
@@ -140,35 +164,51 @@ def post_tweet(text: str) -> dict:
             "TWITTER_ACCESS_TOKEN": acc_token,
             "TWITTER_ACCESS_TOKEN_SECRET": acc_secret,
         }.items() if not v]
-        return {"success": False, "error": f"缺少: {', '.join(missing)}"}
+        return {"success": False, "error": f"缺少环境变量: {', '.join(missing)}"}
 
+    url = "https://api.twitter.com/2/tweets"
+    body = {"text": text}
+    body_bytes = json.dumps(body).encode("utf-8")
+
+    auth_header = _oauth1_header(
+        "POST", url, {}, api_key, api_secret, acc_token, acc_secret
+    )
+
+    req = urllib.request.Request(
+        url,
+        data=body_bytes,
+        headers={
+            "Authorization": auth_header,
+            "Content-Type": "application/json",
+        },
+        method="POST"
+    )
     try:
-        client = tweepy.Client(
-            consumer_key=api_key,
-            consumer_secret=api_secret,
-            access_token=acc_token,
-            access_token_secret=acc_secret,
-        )
-        resp = client.create_tweet(text=text)
-        tid = str(resp.data["id"])
-        return {
-            "success": True,
-            "tweet_id": tid,
-            "url": f"https://x.com/i/web/status/{tid}",
-            "content": text,
-            "posted_at": datetime.now(timezone.utc).isoformat(),
-        }
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            tid = str(data["data"]["id"])
+            return {
+                "success": True,
+                "tweet_id": tid,
+                "url": f"https://x.com/WuYaGeAI/status/{tid}",
+                "content": text,
+                "posted_at": datetime.now(timezone.utc).isoformat(),
+            }
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8")
+        return {"success": False, "error": f"HTTP {e.code}: {err_body}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 
-# ──────────────────────────────────────
+# ─────────────────────────────────────
 #  Vercel Serverless Handler
-# ──────────────────────────────────────
+# ─────────────────────────────────────
+
 class handler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
-        pass  # 静默标准日志
+        pass
 
     def _json(self, data: dict, status: int = 200):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -180,7 +220,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         now = datetime.now(timezone.utc)
-        tweet_text = generate_tweet()
+        tweet_text = generate_tweet_with_claude()
         result = post_tweet(tweet_text)
         self._json({
             "triggered_at": now.isoformat(),
