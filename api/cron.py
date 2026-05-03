@@ -1,8 +1,9 @@
 """
-乌鸦哥 AI Agent — Vercel Cron Handler v4
-策略：乌鸦嘴社评（建立受众）+ fomo.family 推广（产生收益）
-比例：3条社评 : 1条FOMO推广
-调度：UTC 09:00（北京 17:00）每日触发
+乌鸦哥 AI Agent — Vercel Cron Handler v5
+策略：乌鸦嘴社评（建立受众）+ fomo.family 联盟推广（产生收益）
+比例：60% 乌鸦嘴社评 : 40% FOMO推广（每5天2次FOMO）
+收益：被推荐用户每笔交易 → 25% 手续费分成（实时到账）
+调度：UTC 09:00 每日触发
 """
 
 from http.server import BaseHTTPRequestHandler
@@ -10,33 +11,38 @@ import json, os, random, re, time, hmac, hashlib, base64
 import urllib.parse, urllib.request
 from datetime import datetime, timezone
 
-# ─── 配置 ───────────────────────────────────────────────────
-FOMO_REF_LINK = "https://fomo.family/r/SamAltman"
-MAX_TWEET_CHARS = 270  # 留10字余量
+# ─── 配置 ────────────────────────────────────────────────────
+FOMO_REFERRAL    = "https://fomo.family/r/SamAltman"
+FOMO_REF_SHORT   = "fomo.family/r/SamAltman"
+MAX_WEIGHTED     = 276   # 留4字余量（中文=2，英文=1）
 
-# ─── Twitter OAuth 1.0a ─────────────────────────────────────
+
+# ─── Twitter OAuth 1.0a ──────────────────────────────────────
 def _oauth_header(method, url, params, api_key, api_secret, token, token_secret):
-    ts = str(int(time.time()))
+    ts    = str(int(time.time()))
     nonce = base64.b64encode(os.urandom(16)).decode().rstrip("=")
     oauth = {
-        "oauth_consumer_key": api_key,
-        "oauth_nonce": nonce,
+        "oauth_consumer_key":     api_key,
+        "oauth_nonce":            nonce,
         "oauth_signature_method": "HMAC-SHA1",
-        "oauth_timestamp": ts,
-        "oauth_token": token,
-        "oauth_version": "1.0",
+        "oauth_timestamp":        ts,
+        "oauth_token":            token,
+        "oauth_version":          "1.0",
     }
-    all_params = {**params, **oauth}
+    all_params    = {**params, **oauth}
     sorted_params = "&".join(
         f"{urllib.parse.quote(str(k), safe='')}={urllib.parse.quote(str(v), safe='')}"
         for k, v in sorted(all_params.items())
     )
     base_string = "&".join([
         method.upper(),
-        urllib.parse.quote(url, safe=""),
+        urllib.parse.quote(url,           safe=""),
         urllib.parse.quote(sorted_params, safe=""),
     ])
-    signing_key = f"{urllib.parse.quote(api_secret, safe='')}&{urllib.parse.quote(token_secret, safe='')}"
+    signing_key = (
+        f"{urllib.parse.quote(api_secret, safe='')}"
+        f"&{urllib.parse.quote(token_secret, safe='')}"
+    )
     sig = base64.b64encode(
         hmac.new(signing_key.encode(), base_string.encode(), hashlib.sha1).digest()
     ).decode()
@@ -48,269 +54,297 @@ def _oauth_header(method, url, params, api_key, api_secret, token, token_secret)
     return header
 
 
+def weighted_len(text: str) -> int:
+    """Twitter 字符权重：CJK/emoji=2，其余=1"""
+    return sum(2 if ord(c) > 127 else 1 for c in text)
+
+
+def truncate_tweet(text: str, max_w: int = MAX_WEIGHTED) -> str:
+    """截断到安全长度，保留 referral link"""
+    if weighted_len(text) <= max_w:
+        return text
+    lines = text.split('\n')
+    result, current_w = [], 0
+    for line in lines:
+        line_w = weighted_len(line + '\n')
+        if current_w + line_w > max_w - 40:
+            break
+        result.append(line)
+        current_w += line_w
+    truncated = '\n'.join(result)
+    # 保留 referral link（FOMO 推文）
+    if FOMO_REFERRAL in text and FOMO_REFERRAL not in truncated:
+        if weighted_len(truncated + '\n' + FOMO_REFERRAL) <= max_w:
+            truncated = truncated.rstrip() + '\n\n' + FOMO_REFERRAL
+    return truncated
+
+
 def post_tweet(text: str) -> dict:
-    """用 OAuth 1.0a 发推，自动截断超长内容"""
-    # 计算加权字符数（中文=2，英文=1）
-    def weighted_len(s):
-        return sum(2 if ord(c) > 127 else 1 for c in s)
+    """发推（OAuth 1.0a）"""
+    text = truncate_tweet(text)
 
-    # 截断到270加权字符以内
-    if weighted_len(text) > MAX_TWEET_CHARS:
-        truncated = ""
-        count = 0
-        for ch in text:
-            w = 2 if ord(ch) > 127 else 1
-            if count + w > MAX_TWEET_CHARS - 4:
-                truncated += "…"
-                break
-            truncated += ch
-            count += w
-        text = truncated
-
-    api_key    = os.environ["TWITTER_API_KEY"].strip()
-    api_secret = os.environ["TWITTER_API_SECRET"].strip()
-    token      = os.environ["TWITTER_ACCESS_TOKEN"].strip()
+    api_key      = os.environ["TWITTER_API_KEY"].strip()
+    api_secret   = os.environ["TWITTER_API_SECRET"].strip()
+    token        = os.environ["TWITTER_ACCESS_TOKEN"].strip()
     token_secret = os.environ["TWITTER_ACCESS_TOKEN_SECRET"].strip()
 
-    url = "https://api.twitter.com/2/tweets"
-    body = json.dumps({"text": text}).encode()
-    auth = _oauth_header("POST", url, {}, api_key, api_secret, token, token_secret)
+    url    = "https://api.twitter.com/2/tweets"
+    body   = json.dumps({"text": text}).encode()
+    header = _oauth_header("POST", url, {}, api_key, api_secret, token, token_secret)
 
     req = urllib.request.Request(
         url,
         data=body,
         headers={
-            "Authorization": auth,
-            "Content-Type": "application/json",
+            "Authorization":  header,
+            "Content-Type":   "application/json",
+            "Accept":         "application/json",
         },
         method="POST",
     )
     with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
+        return json.loads(resp.read().decode())
 
 
-# ─── Claude 内容生成 ─────────────────────────────────────────
+# ─── Claude 调用 ─────────────────────────────────────────────
 def call_claude(system_prompt: str, user_prompt: str) -> str:
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
         return ""
-
-    body = json.dumps({
-        "model": "claude-opus-4-5",
-        "max_tokens": 400,
-        "system": system_prompt,
-        "messages": [{"role": "user", "content": user_prompt}],
-    }).encode()
-
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=body,
-        headers={
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        method="POST",
-    )
     try:
+        body = json.dumps({
+            "model":      "claude-opus-4-5",
+            "max_tokens": 450,
+            "system":     system_prompt,
+            "messages":   [{"role": "user", "content": user_prompt}],
+        }).encode()
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=body,
+            headers={
+                "x-api-key":         api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type":      "application/json",
+            },
+            method="POST",
+        )
         with urllib.request.urlopen(req, timeout=25) as resp:
-            data = json.loads(resp.read())
+            data = json.loads(resp.read().decode())
             return data["content"][0]["text"].strip()
     except Exception as e:
-        print(f"Claude error: {e}")
+        print(f"[Claude] error: {e}")
         return ""
 
 
-# ─── 乌鸦嘴社评 Prompt ──────────────────────────────────────
-WUYA_SYSTEM = """你是「乌鸦嘴预言家」——港片老炮加网络毒舌合体，专说没人敢说的真相。
+# ─── DexScreener 热门代币 ────────────────────────────────────
+def get_hot_tokens(limit: int = 3) -> str:
+    """获取 Solana 热门代币，作为可选素材"""
+    try:
+        req = urllib.request.Request(
+            "https://api.dexscreener.com/latest/dex/search?q=solana",
+            headers={"User-Agent": "fomo-agent/2.0"},
+        )
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode())
+        pairs = data.get("pairs", [])
+        hot = []
+        for p in pairs[:60]:
+            if p.get("chainId") != "solana":
+                continue
+            vol   = float(p.get("volume",  {}).get("h24", 0) or 0)
+            liq   = float(p.get("liquidity", {}).get("usd", 0) or 0)
+            chg   = float(p.get("priceChange", {}).get("h24", 0) or 0)
+            if liq > 50000 and vol > 100000 and chg > 20:
+                sym = p.get("baseToken", {}).get("symbol", "???")
+                hot.append(f"${sym} +{chg:.0f}% 24h, Vol ${vol/1e6:.1f}M")
+            if len(hot) >= limit:
+                break
+        return "当前 Solana 热门代币：" + " | ".join(hot) if hot else ""
+    except Exception:
+        return ""
 
-文风特征：
-• 开头用一个具体的场景/对话/数字切入，不说废话
-• 中间翻转：表面看X，其实是Y
-• 结尾一句话点杀，让人发出"妈的说得对"
-• 语气：冷静、讽刺、带一点江湖残忍感
-• 签名固定：「— 乌鸦嘴，说到 🐦‍⬛」
 
-格式硬性规定：
-• 纯文字，无 Markdown，无 hashtag，无多余emoji
-• 只有签名行有 🐦‍⬛
-• 整体控制在100字以内（含签名），严格不超
-• 分2-3段，每段1-3句，节奏干净利落
+# ─── 乌鸦嘴系统提示 ──────────────────────────────────────────
+WUYA_SYSTEM = """你是「乌鸦嘴预言家」——港片老炮加网络毒舌合体的社会评论家。
 
-只输出推文正文，不要解释。"""
+核心气质：
+• 说真相但不说废话——每条必须有一个让人「被戳中」的核心洞察
+• 冷幽默、有预言感、不装逼但有底气
+• 语言节奏感强，适合手机上读
 
-# 15个不重复话题方向
+风格要求：
+• 字数：130-190字（Twitter中文计2字符，不超过 278 weighted chars）
+• 禁止：励志鸡汤、模糊废话、成功学腔调
+• 必须：有具体数字/场景/类比，让人觉得是真事
+• 结尾签名固定：「— 乌鸦嘴，说到 🐦‍⬛」
+• 不加 hashtag（保持调性干净）
+
+只输出推文正文，不加任何解释。"""
+
+# ─── 乌鸦嘴话题（20个方向，按日期种子轮换）────────────────────
 WUYA_TOPICS = [
-    "写职场主题：一个打工人最终明白——公司不是家，但你付出的是家人的代价。要有具体场景（如绩效/升职/加班），要有翻转，结尾一刀。",
-    "写裁员主题：裁员通知、HR话术、「我们会支持你」——用犀利视角拆穿这套语言背后的冷血逻辑。",
-    "写韭菜心理主题：散户/普通投资者最经典的一种自我欺骗行为，用乌鸦嘴预言风格，要有具体数字。",
-    "写财富认知主题：穷人和富人对同一件事的理解有什么本质差异？不是鸡汤，是解剖，要残忍真实。",
-    "写创业泡沫主题：一个创业者/投资人说过的最冠冕堂皇的谎言，用乌鸦嘴视角还原真相。",
-    "写社交媒体幻觉主题：人们在刷手机时看到的「成功」和「真实」之间的差距，一刀见血说出来。",
-    "写聪明人被聪明坑死的主题：一个具体认知陷阱，越多聪明人踩越好，越反直觉越好。",
-    "写努力的幻觉主题：你以为在努力，其实你只是在忙——用具体例子区分真努力和假努力。",
-    "写信任主题：不写被辜负，写「信任是怎么被日常小事慢慢吃掉的」，要有画面感。",
-    "写人脉幻觉主题：大多数人积累的所谓人脉，在真正用到的时候才发现是负债，写出这个残忍的真相。",
-    "写消费主义主题：人们买的不是东西，是一种对「更好版本的自己」的幻觉，写出这个套路的运作方式。",
-    "写教育焦虑主题：卷学历的这代人，最后发现证书是门槛而不是出路，写出这个悖论的具体细节。",
-    "写伴侣关系主题：两个人在一起时间长了，不是感情变淡了，是「表演」停了——写出这个时刻的细节。",
-    "写自媒体/网红主题：那些看起来「自由」的创作者，活在算法里比打工仔还不自由，写出这个反差。",
-    "写机会主义主题：大部分人不是等来了机会，而是等掉了机会——写一个具体的等待成本案例。",
+    "写：打工人最不敢承认的真相——「稳定工作」的本质是什么。用具体场景，乌鸦嘴视角，结尾一刀。",
+    "写：老板说「把你当自己人」背后的商业逻辑。要辛辣，有具体案例感，不超过190字。",
+    "写：「再熬一年就好了」这个谎言为什么每年都有人相信。节奏快，150字以内。",
+    "写：努力工作但收入停滞的核心原因——不是抱怨，是揭穿一个具体逻辑错误。",
+    "写：裁员通知为什么总用「感谢你的贡献」开头——翻译这句话的商业含义。",
+    "写：散户在牛市里最经典的亏钱逻辑，用一个具体场景还原，要有数字和时间线。",
+    "写：「感觉要涨」这四个字是怎么让数百万人亏钱的。",
+    "写：市场里最贵的东西不是知识，是信息差。用加密市场举例，写出让人被戳中的洞察。",
+    "写：所有人说「长期持有」，为什么90%的人拿不住——不是意志力问题，是什么问题。",
+    "写：「这次不一样」是历史上每次泡沫前说最多的话。写2026年的具体版本。",
+    "写：大多数人的焦虑不是怕失败，是怕被人看见失败——这两种恐惧的解法为什么不同。",
+    "写：聪明人最危险的习惯是用智商给自己错误找理由——举一个会心一击的具体例子。",
+    "写：「钱不是最重要的」这句话，两类人各自的真实动机是什么。",
+    "写：为什么越穷的人越容易被「一夜暴富」故事骗——不是智商问题，是什么问题。",
+    "写：社交媒体上晒成功的人和真正成功的人有什么关键区别。",
+    "写：加密市场2026年最大的泡沫在哪——用乌鸦嘴预言风格，要有具体赛道名称。",
+    "写：99%的NFT和meme coin归零的底层逻辑——不是市场不好，是什么决定的。",
+    "写：散户为什么永远是接盘侠——让人第一次真正理解这个游戏规则。",
+    "写：「AI+区块链」这个词被说了多少次，现在活下来多少——让人清醒的推文。",
+    "写：加密市场里「共识」这个词是如何被滥用来割韭菜的，要有具体手法描述。",
 ]
 
-# ─── FOMO 推广推文生成 ──────────────────────────────────────
-FOMO_SYSTEM = """你是「乌鸦嘴预言家」，正在推广 fomo.family 这个 Crypto 社交交易平台。
 
-推广原则：
-• 不硬广，用「预言揭露/数据冲击/反差对比」自然植入
-• 保留乌鸦嘴语气：冷静、犀利、带江湖感
-• 结尾必须附上 referral link（我会额外加上）
-• 签名：「— 乌鸦嘴，说到 🐦‍⬛」
+# ─── FOMO 推广系统提示 ───────────────────────────────────────
+FOMO_SYSTEM = f"""你是「乌鸦嘴预言家」，在 fomo.family 上做加密交易，最近推荐了不少人去用这个平台。
 
-平台核心卖点可以用：
-• Leaderboard：顶级交易者 P&L 公开可查
-• Copy Trading：一键复制大佬仓位，<1秒执行
-• 社交 Feed：实时看顶级交易者在买什么
-• 500,000+ 交易者，$1.1M+ 已付佣金给推荐人
+任务：用乌鸦嘴风格写一条自然带出 referral link 的推文。
 
-格式规定：
-• 纯文字，无 Markdown，无 hashtag
-• 签名后面一行留空（referral link 我来加）
-• 推文正文（不含 link）控制在90字以内
-• 分2-3段，节奏有力
+fomo.family 核心卖点（选1-2个自然带出）：
+• 排行榜 + 实时 feed：看顶级玩家买什么，一键跟单
+• 链上透明数据：$370 做到6位数，链上可查不是KOL自吹
+• $1 固定手续费（非按比例）：大单省几十甚至几百美元
+• 跨链零 gas：Solana/Base/BNB/Monad，Apple Pay直接入金
+• 500,000+ 用户，平台已付 $1.1M+ 联盟佣金
 
-只输出推文正文（不含referral link），不要解释。"""
+写作规则：
+• 字数 130-190 中文字
+• 乌鸦嘴语气——冷静、有预言感，绝不广告腔，不说"速来""福利"
+• referral link 自然出现，不要「点击领取」这种说辞
+• 加 1-2 个 hashtag（#Solana #fomo #Memecoin #Base #crypto 选）
+• 结尾：{FOMO_REFERRAL}
 
+只输出推文正文，不加解释。"""
+
+# ─── FOMO 推广角度（10个切入点）────────────────────────────────
 FOMO_ANGLES = [
-    "写排行榜揭露型：fomo.family 排行榜上某个交易者近期大赚，强调这是链上可查的公开数据，所有人都能复制他的操作。用乌鸦嘴语气说出'这条信息能让他少赚，但我还是说了'这种反差感。",
-    "写Copy Trading对比型：对比散户在群里等信号 vs fomo.family 用户直接复制顶级交易者操作的时间差，强调信息优势已经不在群里。",
-    "写数字冲击型：某人用小额资金在 fomo.family 通过 copy trading 实现了大比例增值，强调跟对人比选对币更重要。",
-    "写质疑反转型：以'copy trading 能赚钱？'开头，通过乌鸦嘴视角翻转，引用 fomo.family 排行榜数据作为佐证。",
-    "写普通人机会型：fomo.family 的社交 Feed 让普通人第一次能实时看到顶级交易者在买什么——用乌鸦嘴的语气说这是以前只有机构才有的信息优势。",
-    "写散户宿命型：大多数散户亏钱不是因为不努力，而是因为一个人很难跑赢500人的集体智慧。fomo.family 的 copy trading 解决了这个问题。",
+    f"写信息差角度：加密市场顶级玩家买什么，fomo.family 实时 feed 全公开。普通人2天后才从Twitter知道的，用这个平台的人早就进场了。带出 {FOMO_REFERRAL}",
+    f"写链上数据角度：排行榜上有账户从 $370 做到了6位数。不是KOL吹牛，是链上记录，每笔交易时间价格滑点全都在。聪明人只信数据不信故事。带出 {FOMO_REFERRAL}",
+    f"写手续费数学：大单玩家为什么转向 fomo.family 的$1固定费用。交易$10,000：DEX 0.5%=$50，fomo=$1，差$49。一年100次就是$4900。算数谁都会。带出 {FOMO_REFERRAL}",
+    f"写门槛消失角度：Apple Pay 买 Solana，10秒到账，零 gas。你花了多少年学链上操作，一个从没听说过区块链的人今天就进场了。护城河变成了陷阱。带出 {FOMO_REFERRAL}",
+    f"写跟单本质：散户自己操作亏钱是能力问题。有了实时跟单还亏钱是态度问题。fomo.family 把信息公开了，差距变成了选择题。带出 {FOMO_REFERRAL}",
+    f"写工具进化：Twitter 告诉你别人说了什么，fomo.family 告诉你别人做了什么。说和做之间的差距，就是KOL和交易者的差距。带出 {FOMO_REFERRAL}",
+    f"写多链机会：只玩 Solana 的人错过了 Base，只看 Base 的人错过了 BNB。fomo 四链一个 app，机会不会因为你的视野窄而减少。带出 {FOMO_REFERRAL}",
+    f"写集体智慧：一个人很难跑赢500个交易者的集体决策。韭菜是一个人在和整个市场对赌，用了 fomo 跟单功能，你至少站对了队伍。带出 {FOMO_REFERRAL}",
+    f"写早期窗口：fomo.family 已经付出了超过$1.1M联盟佣金，500万用户还没到。推荐一个活跃交易者，你拿他每笔交易25%手续费，永久。早进去的人早建立被动收入。带出 {FOMO_REFERRAL}",
+    f"写散户宿命反转：不是你不聪明，是你一个人对抗的是整个市场的信息体系。fomo.family 把这个体系拆开给你看了。用不用是你的事。带出 {FOMO_REFERRAL}",
 ]
 
-# 备用推文（Claude 失败时使用）
+
+# ─── Fallback 推文（Claude失败时用）──────────────────────────
 FALLBACK_WUYA = [
-    "有人告诉我他「努力了五年」。\n我看了一眼他的手机屏幕时间：每天刷视频4小时。\n\n努力从来不是感觉，是数据。\n感觉努力，和真的努力，两件事。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "公司说「你是我们最重要的资产」。\n裁员通知发出去的那天，HR 还在用同一套说辞。\n\n资产是可以处置的。\n你不是家人，你是一行账目。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "聪明人最大的敌人，不是愚蠢的人，\n是另一个聪明人告诉他这个方向是对的。\n\n两个聪明人走错路，\n比两个笨人走错路，坑更深，回头更难。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "散户研究了三个月的币，\n机构早在六个月前就布好仓了。\n\n你以为在抢跑，你只是在接盘。\n信息差，是韭菜和镰刀之间唯一的墙。\n\n— 乌鸦嘴，说到 🐦‍⬛",
-    "那些告诉你「努力就会成功」的人，\n自己都靠的是人脉和时机。\n\n不是他们撒谎，是他们真的不知道自己为什么成功。\n无知和欺骗，有时候效果一样。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "有人说市场不可预测。\n\n错。市场极其可预测：\n80%的人，涨了50%后买进，跌了30%后卖出。\n\n不是市场随机，是人类确定性地蠢。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "老板说「你是公司最重要的资产」。\n\n资产的意思是：\n低成本维护，高效率产出，折旧后替换。\n\n你不是家人，你是一行账目。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "「再熬一年就好了」\n\n你三年前、两年前、去年也这么说。\n\n熬不出结果，是时间问题。\n熬错了方向，是逻辑问题。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "所有人说长期持有。\n实际持有超6个月的人，不到5%。\n\n不是意志力问题——\n是没人算过持有的机会成本。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "钱不是最重要的，有两种人在说：\n一是真的不缺钱。\n二是希望你接受更少的钱。\n\n搞清楚对方是哪种，再决定信不信。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "加密市场最贵的东西不是技术，不是项目方，\n是「比你早两分钟知道这件事」。\n\n信息差是真实存在的税，\n不知道的人在付，知道的人在收。\n\n— 乌鸦嘴，说到 🐦‍⬛",
+    "聪明人最危险的习惯：\n用智商给自己的错误找理由。\n\n普通人是认错，聪明人是辩解。\n越聪明越拖得久，越拖越难看。\n\n— 乌鸦嘴，说到 🐦‍⬛",
 ]
 
 FALLBACK_FOMO = [
-    "fomo.family 排行榜第一名，上个月净赚 $47,000。\n没有内幕，没有喊单群，只有链上可查的操作记录。\n任何人都可以一键复制他的仓位。\n\n信息一直是公开的，只是你不知道去哪找。\n\n— 乌鸦嘴，说到 🐦‍⬛\n",
-    "散户在群里等信号，等了三天没动静。\nfomo.family 上的人，早已复制顶级交易者操作，实时到账。\n\n同样的市场，两种命运。\n区别只是在哪里看盘。\n\n— 乌鸦嘴，说到 🐦‍⬛\n",
-    "有人用 $500 在 fomo.family 跟对了人，两周涨到 $4,200。\n不是炒币运气好，是 copy trading 选对了交易者。\n\n普通人赚钱从来不靠聪明，靠的是借到聪明人的脑子。\n\n— 乌鸦嘴，说到 🐦‍⬛\n",
+    f"加密市场亏钱，90%不是运气，是信息。\n\n顶级交易者在买什么，fomo.family 的实时 feed 全部公开。\n不是小道消息，是链上数据。\n\n你看不见，不代表没发生。\n\n#Solana #fomo\n{FOMO_REFERRAL}",
+    f"有人在 fomo.family 从 $370 做到了6位数。\n不是KOL讲故事——排行榜链上可查，每笔交易都在。\n\n聪明钱早进了。你在等什么信号？\n\n#Memecoin #fomo\n{FOMO_REFERRAL}",
+    f"数学题：\n交易$10,000，DEX 0.5%手续费 = $50\nfomo.family $1固定手续费 = $1\n\n一年100次，省$4,900。\n大单玩家为什么在转，逻辑很简单。\n\n#Solana #crypto\n{FOMO_REFERRAL}",
+    f"Apple Pay 买 Solana，10秒到账，零 gas。\n\n门槛降了意味着更多资金涌入，\n先进去的人越赚。\n逻辑很简单，动不动是你的事。\n\n#Base #Solana\n{FOMO_REFERRAL}",
 ]
 
 
-def generate_wuya_tweet() -> str:
-    """生成乌鸦嘴社评推文"""
-    today = datetime.now(timezone.utc)
-    topic_index = (today.day + today.month) % len(WUYA_TOPICS)  # 按日期轮换话题
-    topic = WUYA_TOPICS[topic_index]
-
-    result = call_claude(WUYA_SYSTEM, topic)
-    if result and len(result) > 20:
-        return result
-
-    # Fallback
-    return random.choice(FALLBACK_WUYA)
-
-
-def generate_fomo_tweet() -> str:
-    """生成 FOMO 推广推文"""
-    today = datetime.now(timezone.utc)
-    angle_index = (today.day + today.month * 2) % len(FOMO_ANGLES)
-    angle = FOMO_ANGLES[angle_index]
-
-    result = call_claude(FOMO_SYSTEM, angle)
-    if result and len(result) > 20:
-        # 加上 referral link
-        if FOMO_REF_LINK not in result:
-            result = result.rstrip() + f"\n{FOMO_REF_LINK}"
-        return result
-
-    # Fallback
-    fb = random.choice(FALLBACK_FOMO)
-    return fb + FOMO_REF_LINK
-
-
-def decide_tweet_type() -> str:
+# ─── 推文类型决策（40% FOMO）──────────────────────────────────
+def get_post_type(day_of_year: int) -> str:
     """
-    决定今天发什么类型推文。
-    用 UTC 日期确定 3:1 循环：
-      day % 4 == 0 → FOMO推广
-      其余 → 乌鸦嘴社评
+    每5天中第2、4天发FOMO，其余发乌鸦嘴（40%比例）
     """
-    day = datetime.now(timezone.utc).day
-    return "fomo" if day % 4 == 0 else "wuya"
+    return "fomo" if (day_of_year % 5) in (1, 3) else "wuya"
 
 
-# ─── HTTP Handler（Vercel Serverless）───────────────────────
+# ─── 生成推文 ─────────────────────────────────────────────────
+def generate_tweet(post_type: str, day_of_year: int) -> str:
+    seed = (day_of_year * 7 + 13) % 251   # 伪随机种子，基于日期
+    now  = datetime.now(timezone.utc)
+
+    if post_type == "fomo":
+        # 可选：获取 DexScreener 热门代币作素材
+        token_ctx = get_hot_tokens()
+        angle = FOMO_ANGLES[seed % len(FOMO_ANGLES)]
+        user_prompt = f"{token_ctx}\n\n{angle}" if token_ctx else angle
+
+        text = call_claude(FOMO_SYSTEM, user_prompt)
+
+        if text and weighted_len(text) > 10:
+            # 确保 referral link 存在
+            if FOMO_REFERRAL not in text and FOMO_REF_SHORT not in text:
+                text = text.rstrip() + f"\n\n{FOMO_REFERRAL}"
+        else:
+            text = FALLBACK_FOMO[seed % len(FALLBACK_FOMO)]
+
+    else:  # wuya
+        topic = WUYA_TOPICS[seed % len(WUYA_TOPICS)]
+        text  = call_claude(WUYA_SYSTEM, topic)
+        if not text or weighted_len(text) < 20:
+            text = FALLBACK_WUYA[seed % len(FALLBACK_WUYA)]
+
+    return truncate_tweet(text)
+
+
+# ─── HTTP Handler ────────────────────────────────────────────
 class handler(BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass  # 静默日志
+
+    def log_message(self, fmt, *args):
+        print(f"[HTTP] {fmt % args}")
 
     def do_GET(self):
-        path = self.path.split("?")[0]
+        path = self.path.split("?")[0].rstrip("/")
 
-        # ── 健康检查 ──────────────────────────────────────────
-        if path == "/api/health":
+        # ── 健康检查 ──
+        if path in ("/api/health", "/api/cron/health", ""):
+            env_ok = bool(os.environ.get("TWITTER_ACCESS_TOKEN", "").strip())
             self._json(200, {
-                "status": "ok",
-                "twitter": bool(os.environ.get("TWITTER_ACCESS_TOKEN")),
-                "claude": bool(os.environ.get("ANTHROPIC_API_KEY")),
-                "fomo_ref": FOMO_REF_LINK,
-                "time_utc": datetime.now(timezone.utc).isoformat(),
+                "status":    "ok" if env_ok else "missing_env",
+                "service":   "wuyage-cron-v5",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             })
             return
 
-        # ── 手动测试生成（不发推）─────────────────────────────
-        if path == "/api/preview":
-            tweet_type = self.path.split("type=")[-1] if "type=" in self.path else decide_tweet_type()
-            if tweet_type == "fomo":
-                text = generate_fomo_tweet()
-            else:
-                text = generate_wuya_tweet()
-            self._json(200, {"type": tweet_type, "text": text, "len": len(text)})
-            return
+        # ── Cron 触发 ──
+        if path in ("/api/cron", "/api/cron/run"):
+            now         = datetime.now(timezone.utc)
+            day_of_year = now.timetuple().tm_yday
+            post_type   = get_post_type(day_of_year)
 
-        # ── Cron 触发（正式发推）──────────────────────────────
-        if path in ("/api/cron", "/api/cron/"):
-            # 验证 Vercel Cron Secret（防止外部触发）
-            cron_secret = os.environ.get("CRON_SECRET", "")
-            if cron_secret:
-                auth_header = self.headers.get("authorization", "")
-                if auth_header != f"Bearer {cron_secret}":
-                    self._json(401, {"error": "unauthorized"})
-                    return
-
-            tweet_type = decide_tweet_type()
-            print(f"[Cron] UTC day={datetime.now(timezone.utc).day}, type={tweet_type}")
-
-            if tweet_type == "fomo":
-                text = generate_fomo_tweet()
-            else:
-                text = generate_wuya_tweet()
-
-            print(f"[Cron] Tweet ({len(text)} chars): {text[:80]}...")
+            print(f"[Cron] day={day_of_year}, type={post_type}")
 
             try:
-                result = post_tweet(text)
+                text     = generate_tweet(post_type, day_of_year)
+                w_len    = weighted_len(text)
+                print(f"[Cron] weighted_len={w_len}, text_preview={text[:80]!r}")
+
+                result   = post_tweet(text)
                 tweet_id = result.get("data", {}).get("id", "unknown")
-                print(f"[Cron] ✅ Posted tweet_id={tweet_id}")
+                print(f"[Cron] ✅ tweet_id={tweet_id}")
+
                 self._json(200, {
-                    "ok": True,
-                    "type": tweet_type,
-                    "tweet_id": tweet_id,
-                    "text_preview": text[:100],
+                    "ok":           True,
+                    "type":         post_type,
+                    "tweet_id":     tweet_id,
+                    "weighted_len": w_len,
+                    "text_preview": text[:120],
                 })
             except Exception as e:
-                print(f"[Cron] ❌ Failed: {e}")
-                self._json(500, {"ok": False, "error": str(e), "text": text[:100]})
+                print(f"[Cron] ❌ {e}")
+                import traceback; traceback.print_exc()
+                self._json(500, {"ok": False, "error": str(e)})
             return
 
         self._json(404, {"error": "not found", "path": path})
