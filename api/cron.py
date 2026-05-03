@@ -102,8 +102,9 @@ def post_tweet(text: str) -> dict:
 def get_recent_tweets(count: int = 5) -> list:
     """获取最近 count 条推文（Twitter v2，Bearer Token）"""
     bearer  = os.environ.get("TWITTER_BEARER_TOKEN", "")
-    user_id = os.environ.get("TWITTER_USER_ID", "")
-    if not bearer or not user_id:
+    # TWITTER_USER_ID = @WuYaGeAI 的用户ID（也可在 Vercel env 中覆盖）
+    user_id = os.environ.get("TWITTER_USER_ID", "2047322616474861568")
+    if not bearer:
         return []
     url = (
         f"https://api.twitter.com/2/users/{user_id}/tweets"
