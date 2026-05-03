@@ -419,6 +419,30 @@ class handler(BaseHTTPRequestHandler):
             })
             return
 
+
+        # ── Debug（临时：查看 env var 状态）──
+        if path == '/api/cron/debug':
+            bearer  = os.environ.get('TWITTER_BEARER_TOKEN', 'MISSING')[:30] + '...'
+            user_id = os.environ.get('TWITTER_USER_ID', 'MISSING')
+            try:
+                tweets = get_recent_tweets(3)
+                tweets_ok = len(tweets)
+                today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                posted_today = any(t.get('created_at','')[:10] == today for t in tweets)
+            except Exception as e:
+                tweets_ok = f'error: {e}'
+                posted_today = False
+                today = '?'
+            self._json(200, {
+                'bearer_prefix': bearer,
+                'user_id': user_id,
+                'tweets_fetched': tweets_ok,
+                'today_utc': today,
+                'already_posted_today': posted_today,
+                'service': 'wuyage-cron-v7-debug'
+            })
+            return
+
         # ── Cron 触发 ──
         if path in ("/api/cron", "/api/cron/run"):
             now         = datetime.now(timezone.utc)
