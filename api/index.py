@@ -1,3 +1,4 @@
+# v3.0.2 deploy 20260503-1855
 """
 WuYa Smart Agent 3.0 — 乌鸦嘴预言家
 Vercel Serverless API + Cron Handler
