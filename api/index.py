@@ -1,24 +1,18 @@
 """
-WuYa Smart Agent 3.0
-乌鸦嘴预言家 · Prophecy Engine
-我说的不算，但我说的都准
+WuYa Smart Agent 3.0 — 乌鸦嘴预言家
+Vercel Serverless API + Cron Handler
 """
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
-import json
-import os
-import random
+import json, os, random, hashlib
 from datetime import datetime
-import tweepy
-import anthropic
+from typing import Optional
 
 app = FastAPI(
-    title="WuYa Smart Agent 3.0 — 乌鸦嘴预言家",
-    description="凶相预警 · 预言引擎 · 乌鸦嘴指数",
-    version="3.0.1"
+    title="WuYa Smart Agent 3.0",
+    description="乌鸦嘴预言家 · 凶相预警 · 预言引擎",
+    version="3.0.2",
 )
 
 app.add_middleware(
@@ -28,449 +22,248 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ════════════════════════════════════════════════════
-#  Twitter API Client — 真实发推
-# ════════════════════════════════════════════════════
+# ══════════════════════════════════════
+#  Twitter OAuth 1.0a 客户端
+# ══════════════════════════════════════
 def get_twitter_client():
-    """Initialize real Twitter API v2 client from env vars"""
-    api_key            = os.environ.get("TWITTER_API_KEY")
-    api_secret         = os.environ.get("TWITTER_API_SECRET")
-    access_token       = os.environ.get("TWITTER_ACCESS_TOKEN")
-    access_token_secret= os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
-    bearer_token       = os.environ.get("TWITTER_BEARER_TOKEN")
+    """返回 (client, error_msg)"""
+    api_key    = os.environ.get("TWITTER_API_KEY")
+    api_secret = os.environ.get("TWITTER_API_SECRET")
+    acc_token  = os.environ.get("TWITTER_ACCESS_TOKEN")
+    acc_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
 
-    missing = [k for k,v in {
+    missing = [k for k, v in {
         "TWITTER_API_KEY": api_key,
         "TWITTER_API_SECRET": api_secret,
-        "TWITTER_ACCESS_TOKEN": access_token,
-        "TWITTER_ACCESS_TOKEN_SECRET": access_token_secret,
+        "TWITTER_ACCESS_TOKEN": acc_token,
+        "TWITTER_ACCESS_TOKEN_SECRET": acc_secret,
     }.items() if not v]
 
     if missing:
-        return None, f"Missing env vars: {', '.join(missing)}"
+        return None, f"缺少环境变量: {', '.join(missing)}"
 
     try:
+        import tweepy
         client = tweepy.Client(
-            bearer_token=bearer_token,
             consumer_key=api_key,
             consumer_secret=api_secret,
-            access_token=access_token,
-            access_token_secret=access_token_secret,
-            wait_on_rate_limit=True
+            access_token=acc_token,
+            access_token_secret=acc_secret,
         )
         return client, None
     except Exception as e:
         return None, str(e)
 
 
-def post_tweet_now(text: str) -> dict:
-    """Actually post a tweet, return result dict"""
+def post_tweet_real(text: str) -> dict:
+    """实际发推，返回结果 dict"""
     client, err = get_twitter_client()
     if err:
         return {"success": False, "error": err}
     try:
-        response = client.create_tweet(text=text)
-        tweet_id = response.data["id"]
+        import tweepy
+        resp = client.create_tweet(text=text)
+        tid = str(resp.data["id"])
         return {
             "success": True,
-            "tweet_id": tweet_id,
-            "url": f"https://x.com/wuyageai/status/{tweet_id}",
+            "tweet_id": tid,
+            "url": f"https://x.com/wuyageai/status/{tid}",
             "content": text,
             "posted_at": datetime.utcnow().isoformat() + "Z",
         }
     except tweepy.errors.Forbidden as e:
-        return {"success": False, "error": f"403 Forbidden — 检查 App 权限是否开启 Read+Write: {e}"}
-    except tweepy.errors.TweepyException as e:
+        return {"success": False, "error": f"403 — App 权限需开 Read+Write: {e}"}
+    except Exception as e:
         return {"success": False, "error": str(e)}
 
 
-# ════════════════════════════════════════════════════
-#  In-memory tweet history (resets on cold start)
-# ════════════════════════════════════════════════════
-TWEET_HISTORY: List[dict] = []
+# ══════════════════════════════════════
+#  Claude 内容生成
+# ══════════════════════════════════════
+SYSTEM_PROMPT = """你是「乌鸦哥」，网名「乌鸦嘴预言家」。
+真实身份：香港电影黄金年代行走的传说，张耀扬「乌鸦」IP的延伸。
+核心标签：我说的不算，但我说的都准。
+口头禅：叼着牙签，讲粤普夹杂。
+语气：冷静、毒舌、反直觉、霸气不失市井。
+禁止：心灵鸡汤、过于正能量、空洞格言、重复之前话题。
+格式：150-280字，结尾 —— 乌鸦嘴，说到 🐦‍⬛"""
 
-# ════════════════════════════════════════════════════
-#  预言库 Prophecy Vault
-# ════════════════════════════════════════════════════
-VAULT = [
-    {
-        "id": "p_001",
-        "subject": "某AI独角兽",
-        "category": "industry",
-        "alert_level": 4,
-        "content": "融资烧光、估值腰斩，这局早看出来了。",
-        "created_at": "2025-03-01T10:00:00Z",
-        "status": "fulfilled",
-        "result": "估值从200亿跌至80亿，裁员40%",
-        "fulfilled_at": "2025-04-15T00:00:00Z",
-        "crow_score": 5,
-    },
-    {
-        "id": "p_002",
-        "subject": "某meme加密货币",
-        "category": "market",
-        "alert_level": 5,
-        "content": "庄家出货信号明显，散户接盘在即。凶相。",
-        "created_at": "2025-03-20T09:00:00Z",
-        "status": "fulfilled",
-        "result": "72小时内暴跌63%",
-        "fulfilled_at": "2025-03-23T00:00:00Z",
-        "crow_score": 5,
-    },
-    {
-        "id": "p_003",
-        "subject": "某顶流明星",
-        "category": "celebrity",
-        "alert_level": 3,
-        "content": "人设太满，撑不住的。迟早塌。",
-        "created_at": "2025-04-10T08:00:00Z",
-        "status": "pending",
-        "result": None,
-        "fulfilled_at": None,
-        "crow_score": None,
-    },
-    {
-        "id": "p_004",
-        "subject": "某新能源车企",
-        "category": "industry",
-        "alert_level": 4,
-        "content": "现金流有问题，供应链出现裂缝。这局不好打。",
-        "created_at": "2025-04-20T11:00:00Z",
-        "status": "pending",
-        "result": None,
-        "fulfilled_at": None,
-        "crow_score": None,
-    },
+TOPIC_ANGLES = [
+    "某AI大厂裁员信号已出现，这局怎么看",
+    "打工人最该学古惑仔哪一点",
+    "年轻人为什么不该「努力感动自己」",
+    "996还在，但裁的是996的人",
+    "内卷的本质不是努力，是恐惧",
+    "为什么聪明人最容易被骗",
+    "某互联网独角兽凶相已出，三个信号",
+    "港片教会我的一件事，比商学院实用",
+    "讲道理不是为了对方，是为了自己显得文明",
+    "老板叫你「放心」的时候，最该担心",
+    "现在最该做的一件事：学会消失",
+    "「以后好好合作」=今天我需要你",
+    "穷人思维的本质：用时间换确定性",
+    "一个人要完的征兆：开始解释自己",
+    "职场最危险的话：「你放心，我不会忘的」",
+    "跟错人十年，不如跟对人一年",
+    "凶相：公司开始讲「文化」了",
+    "最贵的不是钱，是你替别人省的那口气",
+    "为什么越努力越焦虑，答案在古惑仔里",
+    "识人不识人，看一件事就够",
 ]
 
-MEME_TRIGGERS = ["崩盘", "暴跌", "腰斩", "跑路", "塌房", "翻车", "暴雷", "破产", "崩了", "完了"]
 
-# ════════════════════════════════════════════════════
-#  推文模板 Tweet Templates
-# ════════════════════════════════════════════════════
-TWEET_TEMPLATES = {
-    "alert": [
-        "⚠️ 凶相预警\n\n{subject}——{detail}\n\n这局不好打。\n乌鸦嘴指数 {level}/5\n\n@wuyageai",
-        "🐦 乌鸦嘴盯着一个东西：{subject}\n\n{detail}\n\n凶相已现。\n乌鸦嘴指数 {level}/5 @wuyageai",
-        "嗅到味了。\n\n{subject}，{detail}\n\n自求多福吧。\n\n乌鸦嘴指数 {level}/5 @wuyageai",
-    ],
-    "fulfilled": [
-        "（叼着牙签）\n\n早说了{subject}会{prediction}。\n\n今天：{result}\n\n#乌鸦嘴又准了 @wuyageai",
-        "🎯 预言兑现\n\n{subject}，说过了。\n\n结果：{result}\n\n#乌鸦嘴从不撒谎 @wuyageai",
-        "不是我说的早，是你们不信。\n\n{subject}：{result}\n\n@wuyageai #乌鸦嘴又准了",
-    ],
-    "sarcasm": [
-        "哟，{subject}{event}了。\n\n意外吗？（一点都不）\n\n@wuyageai",
-        "所以……{subject}，{event}，震惊了吧？\n\n（毫不震惊.jpg）\n\n@wuyageai",
-        "{subject}出事了。\n\n没什么好说的。\n\n@wuyageai",
-    ],
-    "meme": [
-        "（掀桌）\n\n说过了！这不就来了？🀄\n\n#乌鸦嘴从不撒谎",
-        "（叼着牙签）\n\n……早。说。了。\n\n@wuyageai",
-        "🐦\n\n早说了。\n\n（离开现场）",
-        "我不是在诅咒，我是在预警。\n\n结果都一样。\n\n@wuyageai",
-    ],
-}
+def ai_generate_tweet(angle: str) -> str | None:
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return None
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=500,
+            system=SYSTEM_PROMPT,
+            messages=[{
+                "role": "user",
+                "content": f"围绕这个角度写一条推文：{angle}\n只输出推文正文。"
+            }],
+        )
+        return msg.content[0].text.strip()
+    except Exception as e:
+        print(f"[AI] 生成失败: {e}")
+        return None
 
 
-# ════════════════════════════════════════════════════
-#  Pydantic Models
-# ════════════════════════════════════════════════════
-class TweetPostRequest(BaseModel):
-    content: str                   # 直接发这条推文
+# ══════════════════════════════════════
+#  API 端点
+# ══════════════════════════════════════
 
-class AutoGenerateRequest(BaseModel):
-    mode: str = "alert"            # alert | fulfilled | sarcasm | meme
-    subject: str = "某对象"
-    detail: str = ""
-    level: int = 4
-    prediction: str = ""
-    result: str = ""
-    event: str = "翻车"
-    use_ai: bool = False           # True = 用 Claude 生成；False = 用模板
+@app.get("/")
+async def root():
+    return {
+        "name": "WuYa Smart Agent 3.0",
+        "version": "3.0.2",
+        "status": "running",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
 
-class ProphecyCreate(BaseModel):
-    subject: str
-    category: str
-    alert_level: int
-    content: str
-
-class ProphecyHit(BaseModel):
-    id: str
-    result: str
-    crow_score: int
-
-
-# ════════════════════════════════════════════════════
-#  核心 API
-# ════════════════════════════════════════════════════
 
 @app.get("/api/health")
 async def health():
     client, err = get_twitter_client()
     twitter_ok = client is not None
+    anthropic_ok = bool(os.environ.get("ANTHROPIC_API_KEY"))
     return {
-        "status": "ok",
-        "version": "3.0.1",
-        "twitter_connected": twitter_ok,
-        "twitter_error": err if not twitter_ok else None,
-        "anthropic_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
-        "vault_count": len(VAULT),
-        "history_count": len(TWEET_HISTORY),
-        "ts": datetime.utcnow().isoformat() + "Z",
+        "status": "healthy" if twitter_ok and anthropic_ok else "degraded",
+        "twitter": "connected" if twitter_ok else f"error: {err}",
+        "ai": "connected" if anthropic_ok else "missing ANTHROPIC_API_KEY",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 
 
-# ─── 直接发推 ───────────────────────────────────────
-@app.post("/api/tweets/post")
-async def post_tweet(req: TweetPostRequest):
-    """真实发推到 X/Twitter"""
-    if not req.content.strip():
-        raise HTTPException(400, "content is required")
-    if len(req.content) > 280:
-        raise HTTPException(400, f"Tweet too long: {len(req.content)} chars (max 280)")
+@app.get("/api/cron")
+@app.post("/api/cron")
+async def cron_handler(request: Request):
+    """
+    Vercel Cron Job 触发点。
+    每天 UTC 01:00 / 09:00 / 14:00 自动发推。
+    Sandbox error 修复：用此端点代替空 definitions。
+    """
+    print(f"[CRON] Triggered at {datetime.utcnow().isoformat()}")
 
-    result = post_tweet_now(req.content)
+    # 随机选角度
+    angle = random.choice(TOPIC_ANGLES)
+    print(f"[CRON] Angle: {angle}")
 
-    if result["success"]:
-        # 记录历史
-        TWEET_HISTORY.insert(0, {
-            **result,
-            "mode": "manual",
-            "likes": 0, "retweets": 0, "replies": 0,
-        })
-        if len(TWEET_HISTORY) > 50:
-            TWEET_HISTORY.pop()
+    # 生成内容
+    text = ai_generate_tweet(angle)
+    if not text:
+        return {"success": False, "error": "AI 内容生成失败", "timestamp": datetime.utcnow().isoformat()}
 
+    # 发推
+    result = post_tweet_real(text)
+    result["angle"] = angle
+    result["timestamp"] = datetime.utcnow().isoformat() + "Z"
+    print(f"[CRON] Result: {result}")
     return result
 
 
-# ─── 生成 + 发推（一键） ───────────────────────────
-@app.post("/api/auto/generate-and-post")
-async def auto_generate_and_post(req: AutoGenerateRequest):
-    """
-    生成推文内容，然后自动发布到 X。
-    use_ai=True 时调用 Claude 生成；否则使用模板。
-    """
-    # 1. 生成内容
-    if req.use_ai and os.environ.get("ANTHROPIC_API_KEY"):
-        content = await _ai_generate(req)
-    else:
-        content = _template_generate(req)
+@app.post("/api/tweets/post")
+async def post_tweet_endpoint(request: Request):
+    """手动触发发推"""
+    body = await request.json()
+    text = body.get("text", "").strip()
 
-    if not content:
-        raise HTTPException(500, "Failed to generate content")
+    if not text:
+        # 自动生成
+        angle = body.get("angle") or random.choice(TOPIC_ANGLES)
+        text = ai_generate_tweet(angle)
+        if not text:
+            return {"success": False, "error": "内容生成失败"}
 
-    # 确保不超 280 字符
-    if len(content) > 280:
-        content = content[:277] + "..."
-
-    # 2. 发推
-    result = post_tweet_now(content)
-
-    if result["success"]:
-        TWEET_HISTORY.insert(0, {
-            **result,
-            "mode": req.mode,
-            "likes": 0, "retweets": 0, "replies": 0,
-        })
-
-    return {**result, "generated_content": content}
+    return post_tweet_real(text)
 
 
-def _template_generate(req: AutoGenerateRequest) -> str:
-    templates = TWEET_TEMPLATES.get(req.mode, TWEET_TEMPLATES["alert"])
-    tpl = random.choice(templates)
-    return (tpl
-        .replace("{subject}", req.subject)
-        .replace("{detail}", req.detail or "信号不对")
-        .replace("{level}", str(req.level))
-        .replace("{prediction}", req.prediction or "出事")
-        .replace("{result}", req.result or "果然出事")
-        .replace("{event}", req.event or "翻车")
-    )
+@app.get("/api/agent/status")
+async def agent_status():
+    client, err = get_twitter_client()
+    return {
+        "agent_status": "running",
+        "twitter_connected": client is not None,
+        "twitter_error": err,
+        "ai_connected": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "version": "3.0.2",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
 
 
-async def _ai_generate(req: AutoGenerateRequest) -> str:
-    try:
-        ai = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-        mode_desc = {
-            "alert":     "凶相预警——提前预警某对象即将出问题",
-            "fulfilled": "预言应验——宣布之前的预言成真，叼着牙签冷静说一声",
-            "sarcasm":   "反讽点评——某事翻车后用冷嘲热讽点评",
-            "meme":      "表情包——掀桌或叼牙签表情，非常简短有力",
-        }.get(req.mode, "凶相预警")
+@app.post("/api/agent/trigger")
+async def trigger_task(request: Request):
+    """手动触发 cron 任务"""
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    task_type = body.get("type", "tweet") if isinstance(body, dict) else "tweet"
 
-        prompt = f"""你是「乌鸦嘴预言家」，一个专门预警负面事件的AI账号，口头禅是「我说的不算，但我说的都准」。
-        
-任务：为以下场景生成一条 X（Twitter）推文。
-模式：{mode_desc}
-对象：{req.subject}
-细节：{req.detail or '信号不对劲'}
-乌鸦嘴指数：{req.level}/5
+    if task_type == "tweet":
+        return await cron_handler(request)
 
-要求：
-- 字数严格控制在 180 字以内（含标点和换行）
-- 语气冷静、毒舌、带一点宿命感
-- 必须结尾加 @wuyageai 或 #乌鸦嘴又准了
-- 只输出推文正文，不要解释，不要引号
-
-推文："""
-
-        msg = ai.messages.create(
-            model="claude-opus-4-5",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return msg.content[0].text.strip()
-    except Exception as e:
-        # fallback to template
-        return _template_generate(req)
+    return {
+        "success": True,
+        "task_id": f"task_{datetime.utcnow().timestamp():.0f}",
+        "type": task_type,
+        "message": "触发成功",
+    }
 
 
-# ─── 队列（静态示例） ──────────────────────────────
 @app.get("/api/tweets/queue")
 async def get_queue():
+    angle = random.choice(TOPIC_ANGLES)
     return {
         "queue": [
             {
-                "id": "tw_a01", "mode": "alert", "category": "industry",
-                "content": "⚠️ 凶相预警\n\n某大厂——裁员信号已持续3个月。\n\n这局不好打。\n乌鸦嘴指数 4/5\n\n@wuyageai",
-            },
-            {
-                "id": "tw_a02", "mode": "fulfilled", "category": "market",
-                "content": "（叼着牙签）\n\n之前说某币会崩。\n\n今天：-63%\n\n#乌鸦嘴又准了 @wuyageai",
-            },
-            {
-                "id": "tw_a03", "mode": "sarcasm", "category": "celebrity",
-                "content": "哟，某明星塌房了。\n\n意外吗？（一点都不）\n\n@wuyageai",
-            },
-            {
-                "id": "tw_a04", "mode": "meme", "category": "market",
-                "content": "（掀桌）\n\n说过了！这不就来了？🀄\n\n#乌鸦嘴从不撒谎",
-            },
+                "id": "pending_001",
+                "angle": angle,
+                "status": "scheduled",
+                "next_run": "下次 Cron 触发时自动生成",
+            }
         ]
     }
 
 
-# ─── 推文历史（真实已发） ──────────────────────────
 @app.get("/api/tweets/history")
-async def get_history(limit: int = 20):
-    return {"tweets": TWEET_HISTORY[:limit]}
-
-
-# ─── 预言库 CRUD ───────────────────────────────────
-@app.get("/api/prophecy/list")
-async def list_prophecies():
-    return {"prophecies": VAULT, "total": len(VAULT)}
-
-@app.post("/api/prophecy/create")
-async def create_prophecy(p: ProphecyCreate):
-    new_p = {
-        "id": f"p_{len(VAULT)+1:03d}",
-        "subject": p.subject,
-        "category": p.category,
-        "alert_level": p.alert_level,
-        "content": p.content,
-        "created_at": datetime.utcnow().isoformat() + "Z",
-        "status": "pending",
-        "result": None,
-        "fulfilled_at": None,
-        "crow_score": None,
-    }
-    VAULT.append(new_p)
-    return {"success": True, "prophecy": new_p}
-
-@app.post("/api/prophecy/hit")
-async def mark_hit(h: ProphecyHit):
-    for p in VAULT:
-        if p["id"] == h.id:
-            p["status"] = "fulfilled"
-            p["result"] = h.result
-            p["crow_score"] = h.crow_score
-            p["fulfilled_at"] = datetime.utcnow().isoformat() + "Z"
-            return {"success": True, "prophecy": p}
-    raise HTTPException(404, f"Prophecy {h.id} not found")
-
-
-# ─── 内容生成（纯预览，不发推） ───────────────────
-@app.post("/api/content/generate")
-async def generate_content(req: AutoGenerateRequest):
-    """只生成内容预览，不发推"""
-    if req.use_ai and os.environ.get("ANTHROPIC_API_KEY"):
-        content = await _ai_generate(req)
-    else:
-        content = _template_generate(req)
-    meme_triggered = any(w in content for w in MEME_TRIGGERS)
+async def get_history(limit: int = 10):
     return {
-        "content": content,
-        "mode": req.mode,
-        "char_count": len(content),
-        "ready_to_post": True,
-        "meme_triggered": meme_triggered,
-        "meme_suggestion": "（掀桌）\n\n说过了！这不就来了？🀄\n\n#乌鸦嘴从不撒谎" if meme_triggered else None,
+        "note": "历史推文请直接查看 https://x.com/wuyageai",
+        "tweets": [],
     }
-
-
-# ─── Agent 状态 ────────────────────────────────────
-@app.get("/api/agent/status")
-async def agent_status():
-    client, err = get_twitter_client()
-    fulfilled = [p for p in VAULT if p["status"] == "fulfilled"]
-    accuracy = round(len(fulfilled)/len(VAULT)*100, 1) if VAULT else 0
-    return {
-        "version": "3.0.1",
-        "name": "乌鸦嘴预言家",
-        "slogan": "我说的不算，但我说的都准",
-        "twitter_connected": client is not None,
-        "twitter_error": err if client is None else None,
-        "prophecy_accuracy": accuracy,
-        "vault_count": len(VAULT),
-        "fulfilled_count": len(fulfilled),
-        "tweet_count": len(TWEET_HISTORY),
-        "auto_tweet": True,
-        "tweet_interval_min": 45,
-        "reply_interval_min": 10,
-        "meme_triggers": MEME_TRIGGERS,
-        "crow_index_target": 80.0,
-    }
-
-@app.post("/api/agent/trigger")
-async def trigger_task(task: dict):
-    """触发自动任务：生成 + 发推"""
-    task_type = task.get("type", "alert")
-    subject   = task.get("subject", "某对象")
-    detail    = task.get("detail", "信号不对")
-    level     = task.get("level", 4)
-    auto_post = task.get("auto_post", False)
-
-    req = AutoGenerateRequest(
-        mode=task_type, subject=subject,
-        detail=detail, level=level,
-        use_ai=task.get("use_ai", False)
-    )
-
-    if auto_post:
-        return await auto_generate_and_post(req)
-    else:
-        content = _template_generate(req)
-        return {
-            "success": True,
-            "task_id": f"task_{datetime.utcnow().timestamp():.0f}",
-            "type": task_type,
-            "generated_content": content,
-            "posted": False,
-            "message": "内容已生成，未发布（auto_post=false）",
-        }
 
 
 @app.post("/api/webhook/twitter")
 async def twitter_webhook(request: Request):
     data = await request.json()
-    print(f"[WEBHOOK 3.0] {json.dumps(data, indent=2)}")
+    print(f"[WEBHOOK] {json.dumps(data)[:200]}")
     return {"received": True}
 
 
-# Vercel handler
+# Vercel ASGI handler
 from mangum import Mangum
 handler = Mangum(app)
