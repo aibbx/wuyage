@@ -134,7 +134,7 @@ def already_posted_recently(minutes: int = 10) -> bool:
     10分钟冷却：防止多个cron实例同时执行的 race condition。
     force=1 也受此限制（防手动触发刷屏）。
     """
-    tweets = get_recent_tweets(3)
+    tweets = get_recent_tweets(5)
     if not tweets:
         return False
     cutoff = datetime.now(timezone.utc).timestamp() - (minutes * 60)
@@ -424,7 +424,7 @@ class handler(BaseHTTPRequestHandler):
             user_id = os.environ.get("TWITTER_USER_ID", "MISSING")
             tweet_err = None
             try:
-                tweets = get_recent_tweets(3)
+                tweets = get_recent_tweets(5)
                 tweet_err = getattr(get_recent_tweets, "_last_error", None)
                 today  = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 posted_today = any(t.get("created_at","")[:10] == today for t in tweets)
@@ -459,7 +459,7 @@ class handler(BaseHTTPRequestHandler):
             bearer  = os.environ.get('TWITTER_BEARER_TOKEN', 'MISSING')[:30] + '...'
             user_id = os.environ.get('TWITTER_USER_ID', 'MISSING')
             try:
-                tweets = get_recent_tweets(3)
+                tweets = get_recent_tweets(5)
                 tweets_ok = len(tweets)
                 today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
                 posted_today = any(t.get('created_at','')[:10] == today for t in tweets)
