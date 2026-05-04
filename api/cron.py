@@ -415,16 +415,19 @@ class handler(BaseHTTPRequestHandler):
         if debug:
             bearer  = urllib.parse.unquote(os.environ.get("TWITTER_BEARER_TOKEN", ""))[:30] + "..."
             user_id = os.environ.get("TWITTER_USER_ID", "MISSING")
+            tweet_err = None
             try:
                 tweets = get_recent_tweets(3)
                 today  = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 posted_today = any(t.get("created_at","")[:10] == today for t in tweets)
             except Exception as e:
                 tweets, posted_today, today = [], False, "?"
+                tweet_err = str(e)
             self._json(200, {
                 "bearer_prefix": bearer,
                 "user_id": user_id,
                 "tweets_fetched": len(tweets),
+                "tweet_error": tweet_err,
                 "today_utc": today,
                 "already_posted_today": posted_today,
                 "service": "wuyage-cron-v8",
