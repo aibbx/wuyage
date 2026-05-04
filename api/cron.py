@@ -101,7 +101,7 @@ def post_tweet(text: str) -> dict:
 # ─── 查最近推文 ───────────────────────────────────────────────
 def get_recent_tweets(count: int = 5) -> list:
     """获取最近 count 条推文（Twitter v2，Bearer Token）"""
-    bearer  = urllib.parse.unquote(os.environ.get("TWITTER_BEARER_TOKEN", ""))
+    bearer  = os.environ.get("TWITTER_BEARER_TOKEN", "")
     # TWITTER_USER_ID = @WuYaGeAI 的用户ID（也可在 Vercel env 中覆盖）
     user_id = os.environ.get("TWITTER_USER_ID", "2047322616474861568").strip()
     if not bearer:
@@ -413,7 +413,7 @@ class handler(BaseHTTPRequestHandler):
 
         # ── debug=1 → 直接进 debug 模式，不发推文 ──
         if debug:
-            bearer  = urllib.parse.unquote(os.environ.get("TWITTER_BEARER_TOKEN", ""))[:30] + "..."
+            bearer  = os.environ.get("TWITTER_BEARER_TOKEN", "")[:30] + "..."
             user_id = os.environ.get("TWITTER_USER_ID", "MISSING")
             tweet_err = None
             try:
@@ -448,7 +448,7 @@ class handler(BaseHTTPRequestHandler):
 
         # ── Debug（临时：查看 env var 状态）──
         if path == '/api/cron/debug':
-            bearer  = urllib.parse.unquote(os.environ.get('TWITTER_BEARER_TOKEN', 'MISSING'))[:30] + '...'
+            bearer  = os.environ.get('TWITTER_BEARER_TOKEN', 'MISSING')[:30] + '...'
             user_id = os.environ.get('TWITTER_USER_ID', 'MISSING')
             try:
                 tweets = get_recent_tweets(3)
