@@ -118,6 +118,8 @@ def get_recent_tweets(count: int = 5) -> list:
             return json.loads(r.read().decode()).get("data", [])
     except Exception as e:
         print(f"[Twitter] get_recent_tweets error: {e}")
+        # Store error for debug
+        get_recent_tweets._last_error = str(e)
         return []
 
 
@@ -418,6 +420,7 @@ class handler(BaseHTTPRequestHandler):
             tweet_err = None
             try:
                 tweets = get_recent_tweets(3)
+                tweet_err = getattr(get_recent_tweets, "_last_error", None)
                 today  = datetime.now(timezone.utc).strftime("%Y-%m-%d")
                 posted_today = any(t.get("created_at","")[:10] == today for t in tweets)
             except Exception as e:
