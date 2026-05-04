@@ -479,13 +479,20 @@ class handler(BaseHTTPRequestHandler):
 
         # ── Cron 触发 ──
         if path in ("/api/cron", "/api/cron/run"):
+            # ── v8 鉴权：只接受 Vercel cron 或正确 secret ──
+            vercel_cron  = self.headers.get("x-vercel-cron", "") == "1"
+            valid_secret = secret == os.environ.get("CRON_SECRET", "wuyage2024")
+            if not vercel_cron and not valid_secret:
+                self._json(403, {"ok": False, "error": "unauthorized"})
+                return
+
             now         = datetime.now(timezone.utc)
             day_of_year = now.timetuple().tm_yday
             post_type   = get_post_type(day_of_year)
 
-            print(f"[Cron] v7 day={day_of_year}, type={post_type}, force={force}")
+            print(f"[Cron] v8 day={day_of_year}, type={post_type}, force={force}, vercel={vercel_cron}")
 
-            # v7 检查1：10分钟冷却（force 也受此限制，防刷屏）
+            # v8 检查1：10分钟冷却（Vercel cron 自动触发时检查）
             if already_posted_recently(10):
                 self._json(200, {
                     "ok":      True,
