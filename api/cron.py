@@ -101,9 +101,9 @@ def post_tweet(text: str) -> dict:
 # ─── 查最近推文 ───────────────────────────────────────────────
 def get_recent_tweets(count: int = 5) -> list:
     """获取最近 count 条推文（Twitter v2，Bearer Token）"""
-    bearer  = os.environ.get("TWITTER_BEARER_TOKEN", "")
+    bearer  = urllib.parse.unquote(os.environ.get("TWITTER_BEARER_TOKEN", ""))
     # TWITTER_USER_ID = @WuYaGeAI 的用户ID（也可在 Vercel env 中覆盖）
-    user_id = os.environ.get("TWITTER_USER_ID", "2047322616474861568")
+    user_id = os.environ.get("TWITTER_USER_ID", "2047322616474861568").strip()
     if not bearer:
         return []
     url = (
@@ -408,6 +408,29 @@ class handler(BaseHTTPRequestHandler):
             urllib.parse.urlparse(self.path).query
         ))
         force = params.get("force", "0") == "1"
+        debug = params.get("debug", "0") == "1"
+        secret = params.get("secret", "")
+
+        # ── debug=1 → 直接进 debug 模式，不发推文 ──
+        if debug:
+            bearer  = urllib.parse.unquote(os.environ.get("TWITTER_BEARER_TOKEN", ""))[:30] + "..."
+            user_id = os.environ.get("TWITTER_USER_ID", "MISSING")
+            try:
+                tweets = get_recent_tweets(3)
+                today  = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                posted_today = any(t.get("created_at","")[:10] == today for t in tweets)
+            except Exception as e:
+                tweets, posted_today, today = [], False, "?"
+            self._json(200, {
+                "bearer_prefix": bearer,
+                "user_id": user_id,
+                "tweets_fetched": len(tweets),
+                "today_utc": today,
+                "already_posted_today": posted_today,
+                "service": "wuyage-cron-v8",
+            })
+            return
+
 
         # ── 健康检查 ──
         if path in ("/api/health", "/api/cron/health", ""):
@@ -422,7 +445,7 @@ class handler(BaseHTTPRequestHandler):
 
         # ── Debug（临时：查看 env var 状态）──
         if path == '/api/cron/debug':
-            bearer  = os.environ.get('TWITTER_BEARER_TOKEN', 'MISSING')[:30] + '...'
+            bearer  = urllib.parse.unquote(os.environ.get('TWITTER_BEARER_TOKEN', 'MISSING'))[:30] + '...'
             user_id = os.environ.get('TWITTER_USER_ID', 'MISSING')
             try:
                 tweets = get_recent_tweets(3)
