@@ -492,16 +492,7 @@ class handler(BaseHTTPRequestHandler):
 
             print(f"[Cron] v8 day={day_of_year}, type={post_type}, force={force}, vercel={vercel_cron}")
 
-            # v8 检查1：10分钟冷却（Vercel cron 自动触发时检查）
-            if already_posted_recently(10):
-                self._json(200, {
-                    "ok":      True,
-                    "skipped": True,
-                    "reason":  "10_min_cooldown",
-                })
-                return
-
-            # v7 检查2：每日幂等（非 force 模式）
+            # v8 幂等：每日只发一次（UTC日期判断），force=1 强制跳过
             if not force and already_posted_today():
                 self._json(200, {
                     "ok":      True,
