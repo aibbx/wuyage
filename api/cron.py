@@ -116,9 +116,14 @@ def get_recent_tweets(count: int = 5) -> list:
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             return json.loads(r.read().decode()).get("data", [])
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="ignore")[:200]
+        err_msg = f"HTTP {e.code}: {body}"
+        print(f"[Twitter] get_recent_tweets error: {err_msg}")
+        get_recent_tweets._last_error = err_msg
+        return []
     except Exception as e:
         print(f"[Twitter] get_recent_tweets error: {e}")
-        # Store error for debug
         get_recent_tweets._last_error = str(e)
         return []
 
